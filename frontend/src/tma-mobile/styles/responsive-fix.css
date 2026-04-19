@@ -146,6 +146,18 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--fluid-gap-md);
   width: 100%;
+  align-items: stretch; /* всі картки мають ОДНАКОВУ висоту (по найвищій в ряду) */
+}
+
+/* Горизонтальний скрол-ряд ("Ви дивились", "Новинки") — картки теж однакової висоти */
+.home-v2__scroll-row,
+.tma-scroll-row {
+  align-items: stretch !important;
+}
+
+.home-v2__scroll-item > *,
+.tma-scroll-row > * {
+  height: 100%;
 }
 
 /* Якщо контейнер дуже вузький (<320px) — 1 колонка */

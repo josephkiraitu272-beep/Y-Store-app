@@ -135,9 +135,14 @@ const ProductCard = ({ product }) => {
           <div className="product-card-v2__price" data-testid="product-card-price">
             {formatPrice(product.price)} ₴
           </div>
-          {product.old_price && (
+          {product.old_price ? (
             <div className="product-card-v2__old-price">
               {formatPrice(product.old_price)} ₴
+            </div>
+          ) : (
+            /* Невидимий placeholder — резервує місце, щоб усі картки мали ОДНАКОВУ висоту */
+            <div className="product-card-v2__old-price product-card-v2__old-price--placeholder" aria-hidden="true">
+              &nbsp;
             </div>
           )}
         </div>

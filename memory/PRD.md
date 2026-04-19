@@ -82,7 +82,19 @@
 - ✅ **Fix Checkout narrow inputs:** додано exceptions `min-height: 52px !important` для `.np-picker__trigger`, `.checkout-v3__input`, `.np-sheet__search-input`. NP BottomSheet має `min-height: 380px`, items `min-height: 56px`
 - ✅ **Ukrainian operator validation:** повний список префіксів (Київстар 39/67/68/96/97/98, Vodafone 50/66/95/99, lifecell 63/73/93, Intertelecom 94, 3Mob 91, Ukrtelecom 92) + detectOperatorUA() хелпер + перевірка на "всі однакові цифри" (фейкові номери)
 
-## Next Tasks (awaiting user input)
-- Подивитись "Мої замовлення" у Telegram Desktop — перевірити layout
-- Опціонально: інтегрувати site_adapter з реальним REST API сайту
-- Опціонально: виведення оператора у checkout form (live під полем телефона)
+## Session 5 — Uniform card heights + handoff confirmation (2026-04-19)
+- ✅ **Fix product card height inconsistency:**
+  - `.product-card-v2` → `height: 100%` (заповнює grid cell)
+  - `.product-card-v2__price-block` → `min-height: 34px` + `justify-content: flex-end` (резервує 2 рядки)
+  - `.product-card-v2__old-price--placeholder` — невидимий `&nbsp;` коли немає знижки
+  - `.home-v2__grid / .catalog-v2__grid` → `align-items: stretch` (картки рівняються по найвищій)
+  - `.home-v2__scroll-row` → `align-items: stretch` + child `height: 100%`
+  - **Перевірено:** усі 6 карток у home grid → `305.203125px` (ідеально однакові)
+  - **Перевірено:** scroll-row cards → `290.984375px` (однакові)
+- ✅ Створено `HANDOFF_CONFIRMATION.md` — офіційний документ передачі:
+  - Таблиця ізоляції по кожному модулю
+  - Підтвердження що NP/WFP/Bot/Auth/Cart — повністю всередині
+  - Dev-чеклист (3 кроки: підняти → підключити каталог → production)
+  - 3 діаграми flow (каталог, cash order, card order)
+  - Smoke-test команди
+  - 18-точковий чекбокс готовності

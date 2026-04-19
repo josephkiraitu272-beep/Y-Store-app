@@ -13,6 +13,9 @@
   position: relative;
   display: flex;
   flex-direction: column;
+  /* Універсальна висота: зображення (1:1) + info (120px гарантовано) */
+  height: 100%;
+  min-height: 0;
 }
 
 .product-card-v2:active {
@@ -182,27 +185,37 @@
   min-height: 34px;
 }
 
-/* Price Block */
+/* Price Block — ФІКСОВАНА висота (резервуємо місце під old-price завжди) */
 .product-card-v2__price-block {
   display: flex;
   flex-direction: column;
   gap: 2px;
   margin-top: auto;
+  min-height: 34px; /* = price (16px) + gap (2px) + old-price (12px) + buffer */
+  justify-content: flex-end;
 }
 
 .product-card-v2__price {
   font-size: 16px;
   font-weight: 700;
-  line-height: 1;
+  line-height: 1.1;
   color: var(--color-text-primary);
 }
 
 .product-card-v2__old-price {
   font-size: 12px;
   font-weight: 500;
-  line-height: 1;
+  line-height: 1.1;
   color: var(--color-text-tertiary);
   text-decoration: line-through;
+  min-height: 14px; /* коли порожня (нема old_price) — простір все одно є через placeholder */
+}
+
+/* Невидимий placeholder для old-price коли немає знижки */
+.product-card-v2__old-price--placeholder {
+  visibility: hidden;
+  min-height: 14px;
+  display: block;
 }
 
 /* ============ GROWTH v2 - FAVORITES ============ */
