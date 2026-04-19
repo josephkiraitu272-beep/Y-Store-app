@@ -36,7 +36,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-TMA_URL = os.getenv("TMA_URL", "https://market-integration.preview.emergentagent.com/tma")
+TMA_URL = os.getenv("TMA_URL", "https://bot-app-deploy.preview.emergentagent.com/tma")
 MONGO_URL = os.getenv("MONGO_URL", "mongodb://localhost:27017")
 DB_NAME = os.getenv("DB_NAME", "tma_store")
 

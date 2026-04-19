@@ -6,7 +6,7 @@ import os
 import pytest
 import requests
 
-BASE_URL = "https://market-integration.preview.emergentagent.com"
+BASE_URL = "https://bot-app-deploy.preview.emergentagent.com"
 
 
 @pytest.fixture(scope="module")

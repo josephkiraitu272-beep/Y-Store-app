@@ -56,6 +56,24 @@
   - Lazy httpx client, feature-flag SITE_ADAPTER_ENABLED
   - Готові normalizer функції (заготовки під реальну схему сайту)
 
+## Session 3 — Universal Responsive Fix (2026-04-19)
+- ✅ Виявлено корінь проблеми: `aspect-ratio: 1` не підтримується в деяких Telegram Desktop WebView → картки схлопувались у 0px, видно було тільки rating
+- ✅ Створено `/app/frontend/src/tma-mobile/styles/responsive-fix.css` (350+ рядків):
+  - **aspect-ratio → padding-bottom fallback** з `@supports` перевіркою
+  - Fluid typography/spacing через `clamp()` (працює від 280px до 720px)
+  - Адаптивні grids: 1/2/3/4 колонки залежно від ширини контейнера
+  - `min-width: 0` універсально на всіх grid/flex дітях (prevents blowout)
+  - Container queries `@container tma` + media queries як fallback
+  - Emergency `min-height` на картках (гарантовано видимі)
+  - `@supports not (aspect-ratio: 1/1)` — повний fallback для старих WebView
+  - Спеціальні правила для вузьких Telegram Desktop popup (<340px)
+- ✅ JS-driven breakpoint detector в `App.jsx`:
+  - ResizeObserver стежить за `#tma-root` clientWidth
+  - Ставить класи `.tma-narrow` / `.tma-regular` / `.tma-wide` / `.tma-xwide`
+  - Експонує `--tma-container-width` як CSS-змінну
+- ✅ `viewport meta` оновлено: `width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover`
+- ✅ Тестовано: TMA коректно відображається від 320px до 1920px width без overflow, без collapse карток
+
 ## Next Tasks (awaiting user input)
 - Доробка TMA — конкретні запити від користувача
 - Опціонально: інтегрувати site_adapter з реальним REST API сайту y-store.in.ua

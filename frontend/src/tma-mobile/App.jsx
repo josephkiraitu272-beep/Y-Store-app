@@ -28,6 +28,7 @@ import Loading from './components/Loading';
 // Styles (v2 design system)
 import './styles/design-tokens.css';
 import './styles/main-v2.css';
+import './styles/responsive-fix.css';  // ← universal responsive layer (MUST be last)
 
 const TMAApp = () => {
   const { loading, error, initialize } = useAuthStore();
@@ -48,8 +49,37 @@ const TMAApp = () => {
     // Apply mobile class
     document.body.classList.add('tma-mobile-body');
 
+    // ============ UNIVERSAL RESPONSIVE ADAPTER ============
+    // Відстежує ширину контейнера TMA-root та ставить класи
+    // .tma-narrow / .tma-regular / .tma-wide для будь-якого браузера
+    // (fallback для версій без container queries — старі Telegram Desktop)
+    const applyBreakpointClass = () => {
+      const root = document.getElementById('tma-root');
+      if (!root) return;
+      const w = root.clientWidth || window.innerWidth;
+      root.classList.remove('tma-narrow', 'tma-regular', 'tma-wide', 'tma-xwide');
+      if (w < 340) root.classList.add('tma-narrow');
+      else if (w < 480) root.classList.add('tma-regular');
+      else if (w < 720) root.classList.add('tma-wide');
+      else root.classList.add('tma-xwide');
+      // Експонуємо ширину як CSS-змінну (для точного clamp() у будь-якому компоненті)
+      root.style.setProperty('--tma-container-width', `${w}px`);
+    };
+
+    applyBreakpointClass();
+    const ro = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(applyBreakpointClass)
+      : null;
+    const rootEl = document.getElementById('tma-root');
+    if (ro && rootEl) ro.observe(rootEl);
+    window.addEventListener('resize', applyBreakpointClass);
+    window.addEventListener('orientationchange', applyBreakpointClass);
+
     return () => {
       document.body.classList.remove('tma-mobile-body');
+      if (ro) ro.disconnect();
+      window.removeEventListener('resize', applyBreakpointClass);
+      window.removeEventListener('orientationchange', applyBreakpointClass);
     };
   }, [initialize]);
 

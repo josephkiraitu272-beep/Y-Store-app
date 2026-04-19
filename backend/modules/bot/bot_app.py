@@ -47,7 +47,7 @@ from aiogram.types import (
 
 TMA_URL = os.getenv(
     "TMA_URL",
-    (os.getenv("APP_URL") or "https://market-integration.preview.emergentagent.com").rstrip("/") + "/tma",
+    (os.getenv("APP_URL") or "https://bot-app-deploy.preview.emergentagent.com").rstrip("/") + "/tma",
 )
 
 # Configure logging - DEBUG level for troubleshooting
