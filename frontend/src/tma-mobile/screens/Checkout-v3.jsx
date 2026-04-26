@@ -232,6 +232,13 @@ export default function CheckoutV3() {
 
   const formatPrice = (price) => new Intl.NumberFormat('uk-UA').format(price);
 
+  // Calculate shipping
+  const SHIPPING_THRESHOLD = 2000;
+  const SHIPPING_COST = 70;
+  const subtotal = getTotal();
+  const shippingCost = subtotal < SHIPPING_THRESHOLD ? SHIPPING_COST : 0;
+  const totalWithShipping = subtotal + shippingCost;
+
   return (
     <Page>
       <div className="checkout" data-testid="checkout-v3">
@@ -402,6 +409,19 @@ export default function CheckoutV3() {
                   <div className="checkout__total-label">До сплати</div>
                   <div className="checkout__total-value">{formatPrice(total)} ₴</div>
                 </div>
+
+                {/* SHIPPING INFO */}
+                {shippingCost > 0 && (
+                  <div className="checkout__shipping-info">
+                    <div className="checkout__shipping-hint">
+                      ℹ️ <strong>Вартість доставки</strong> включена в суму замовлення (Нова Пошта).
+                      <div style={{ fontSize: '12px', marginTop: '4px', color: '#666' }}>
+                        Товари: {formatPrice(subtotal)} ₴<br />
+                        Доставка: +{formatPrice(shippingCost)} ₴
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -301,6 +301,28 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ============ SHIPPING INFO ============ */
+
+.checkout__shipping-info {
+  margin-top: var(--space-16);
+  padding: 12px 14px;
+  background: rgba(14, 165, 164, 0.06);
+  border: 1px solid rgba(14, 165, 164, 0.2);
+  border-radius: 12px;
+}
+
+.checkout__shipping-hint {
+  font-size: 13px;
+  font-weight: 500;
+  color: #0b1220;
+  line-height: 1.5;
+}
+
+.checkout__shipping-hint strong {
+  font-weight: 600;
+  color: #0ea5a4;
+}
+
 /* Deprecated — legacy styles retired */
 
 /* ============ ACTIONS - КОМПАКТНЫЕ КНОПКИ ============ */

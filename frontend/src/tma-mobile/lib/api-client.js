@@ -1,6 +1,6 @@
 /**
  * API Client for Telegram Mini App
- * Handles all backend communication
+ * Handles communication with both TMA backend (auth, orders) and main backend (catalog, products)
  */
 
 import axios from "axios";
@@ -11,10 +11,17 @@ const TMA_API_BASE =
   process.env.REACT_APP_BACKEND_URL ||
   "";
 
+const MAIN_API_BASE =
+  process.env.REACT_APP_MAIN_BACKEND_URL ||
+  process.env.REACT_APP_BACKEND_URL ||
+  "";
+
 class APIClient {
   constructor() {
     this.token = null;
-    this.axios = axios.create({
+
+    // TMA backend (auth, orders for TMA)
+    this.tmaAxios = axios.create({
       baseURL: `${TMA_API_BASE}/api/tma`,
       timeout: 15000,
       headers: {
@@ -22,8 +29,17 @@ class APIClient {
       },
     });
 
-    // Request interceptor
-    this.axios.interceptors.request.use(
+    // Main backend (catalog, products, home)
+    this.mainAxios = axios.create({
+      baseURL: `${MAIN_API_BASE}/api`,
+      timeout: 15000,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    // TMA request interceptor
+    this.tmaAxios.interceptors.request.use(
       (config) => {
         if (this.token) {
           config.headers.Authorization = `Bearer ${this.token}`;
@@ -33,8 +49,8 @@ class APIClient {
       (error) => Promise.reject(error),
     );
 
-    // Response interceptor
-    this.axios.interceptors.response.use(
+    // TMA response interceptor
+    this.tmaAxios.interceptors.response.use(
       (response) => response.data,
       (error) => {
         if (error.response?.status === 401) {
@@ -43,33 +59,39 @@ class APIClient {
         return Promise.reject(error);
       },
     );
+
+    // Main response interceptor (extract data, no auth needed for public endpoints)
+    this.mainAxios.interceptors.response.use(
+      (response) => response.data,
+      (error) => Promise.reject(error),
+    );
   }
 
   normalizePath(path = "") {
     if (!path) return "/";
+    if (path.startsWith("/api/v2/")) return path.replace("/api/v2", "");
+    if (path.startsWith("/v2/")) return path;
     if (path.startsWith("/api/tma/")) return path.replace("/api/tma", "");
-    if (path.startsWith("/tma/")) return path.replace("/tma", "");
+    if (path.startsWith("/tma/")) return path;
     return path;
   }
 
-  async get(path, config = {}) {
-    return this.axios.get(this.normalizePath(path), config);
+  // TMA-specific methods (using tmaAxios)
+  async getTMAPath(path, config = {}) {
+    return this.tmaAxios.get(this.normalizePath(path), config);
   }
 
-  async post(path, data = {}, config = {}) {
-    return this.axios.post(this.normalizePath(path), data, config);
+  async postTMAPath(path, data = {}, config = {}) {
+    return this.tmaAxios.post(this.normalizePath(path), data, config);
   }
 
-  async put(path, data = {}, config = {}) {
-    return this.axios.put(this.normalizePath(path), data, config);
+  // Main backend methods (using mainAxios)
+  async getMainPath(path, config = {}) {
+    return this.mainAxios.get(this.normalizePath(path), config);
   }
 
-  async patch(path, data = {}, config = {}) {
-    return this.axios.patch(this.normalizePath(path), data, config);
-  }
-
-  async delete(path, config = {}) {
-    return this.axios.delete(this.normalizePath(path), config);
+  async postMainPath(path, data = {}, config = {}) {
+    return this.mainAxios.post(this.normalizePath(path), data, config);
   }
 
   setToken(token) {
@@ -101,99 +123,122 @@ class APIClient {
     // If no initData (browser testing), use sandbox mode
     const authData = initData || "sandbox:1";
 
-    const response = await this.axios.post("/auth", { init_data: authData });
+    const response = await this.tmaAxios.post("/auth", { init_data: authData });
     this.setToken(response.token);
     localStorage.setItem("tma_user", JSON.stringify(response.user));
     return response;
   }
 
   async getMe() {
-    return this.axios.get("/me");
+    return this.tmaAxios.get("/me");
   }
 
-  // Home
+  // Home — загружает популярные товары с main backend
   async getHome() {
-    return this.axios.get("/home");
+    try {
+      // Get popular products (bestsellers)
+      const result = await this.mainAxios.get("/v2/products/search", {
+        params: { sort: "pop", limit: 12, page: 1 },
+      });
+
+      return {
+        bestsellers: result.items || result.products || [],
+        new_arrivals: [],
+      };
+    } catch (e) {
+      console.error("getHome error:", e);
+      return { bestsellers: [], new_arrivals: [] };
+    }
   }
 
-  // Categories
+  // Categories — вызывает /api/v2/catalog/tree на main backend
   async getCategories() {
-    return this.axios.get("/categories");
+    return this.mainAxios.get("/v2/catalog/tree");
   }
 
-  // Products
+  // Products — вызывает /api/v2/catalog/{slug}/products на main backend
   async getProducts(params = {}) {
-    return this.axios.get("/products", { params });
+    // Если params.category_id или params.slug, используем /v2/catalog/{slug}/products
+    if (params.slug) {
+      const slug = params.slug;
+      delete params.slug;
+      return this.mainAxios.get(`/v2/catalog/${slug}/products`, { params });
+    }
+    // Fallback: generic search
+    return this.mainAxios.get("/v2/products", { params });
   }
 
+  // Get single product from main backend
   async getProduct(id) {
-    return this.axios.get(`/products/${id}`);
+    return this.mainAxios.get(`/v2/products/${id}`);
   }
 
-  // Search
+  // Search — вызывает main backend
   async searchSuggest(query) {
-    return this.axios.get("/search/suggest", { params: { q: query } });
+    return this.mainAxios.get("/v2/search/suggest", { params: { q: query } });
   }
 
   async searchProducts(query) {
-    return this.axios.get("/products", { params: { q: query } });
+    return this.mainAxios.get("/v2/search", { params: { q: query } });
   }
 
-  // Cart
+  // Cart (main backend)
   async previewCart(items) {
-    return this.axios.post("/cart/preview", { items });
+    return this.mainAxios.post("/v2/cart/preview", { items });
   }
 
-  // Orders
+  // Orders (TMA backend)
   async createOrder(data) {
-    return this.axios.post("/orders", data);
+    return this.tmaAxios.post("/orders", data);
   }
 
   async getOrders() {
-    return this.axios.get("/orders");
+    return this.tmaAxios.get("/orders");
   }
 
   async getOrder(id) {
-    return this.axios.get(`/orders/${id}`);
+    return this.tmaAxios.get(`/orders/${id}`);
   }
 
   async deleteOrder(id) {
-    return this.axios.delete(`/orders/${id}`);
+    return this.tmaAxios.delete(`/orders/${id}`);
   }
 
   async simulatePayment(id) {
-    return this.axios.post(`/orders/${id}/simulate-payment`);
+    return this.tmaAxios.post(`/orders/${id}/simulate-payment`);
   }
 
-  // Favorites
+  // Favorites (main backend)
   async getFavorites() {
-    return this.axios.get("/favorites");
+    return this.mainAxios.get("/v2/favorites");
   }
 
   async getFavoriteIds() {
-    return this.axios.get("/favorites/ids");
+    return this.mainAxios.get("/v2/favorites/ids");
   }
 
   async toggleFavorite(productId) {
-    return this.axios.post("/favorites/toggle", { product_id: productId });
+    return this.mainAxios.post("/v2/favorites/toggle", {
+      product_id: productId,
+    });
   }
 
-  // Reviews
+  // Reviews (main backend)
   async getProductReviews(productId) {
-    return this.axios.get(`/products/${productId}/reviews`);
+    return this.mainAxios.get(`/v2/products/${productId}/reviews`);
   }
 
   async createReview(data) {
-    return this.axios.post("/reviews", data);
+    return this.mainAxios.post("/v2/reviews", data);
   }
 
-  // Support
+  // Support (TMA backend)
   async getSupportTickets() {
-    return this.axios.get("/support/my-tickets");
+    return this.tmaAxios.get("/support/my-tickets");
   }
 
   async createSupportTicket(data) {
-    return this.axios.post("/support/ticket", data);
+    return this.tmaAxios.post("/support/ticket", data);
   }
 }
 
