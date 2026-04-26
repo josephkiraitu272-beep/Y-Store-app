@@ -64,7 +64,7 @@ class SiteAdapter:
 
     # ======================= Products =======================
 
-    async def list_products(self, filters: dict[str, Any]) -> list[dict]:
+    async def list_products(self, filters: dict[str, Any]) -> dict[str, Any]:
         """
         filters = {
             'q': str,                     # пошук по title/brand/description
@@ -77,46 +77,144 @@ class SiteAdapter:
         if not self.enabled:
             raise SiteAdapterError("site_adapter not enabled")
 
-        params: dict[str, Any] = {}
-        if filters.get("q"):
-            params["q"] = filters["q"]
-        if filters.get("category_slug"):
-            params["category"] = filters["category_slug"]
-        if filters.get("limit"):
-            params["limit"] = filters["limit"]
-        if filters.get("skip"):
-            params["offset"] = filters["skip"]
-        if filters.get("sort"):
-            params["sort"] = filters["sort"]
+        q = filters.get("q") or ""
+        category_slug = filters.get("category_slug") or ""
+        limit = int(filters.get("limit") or 20)
+        skip = int(filters.get("skip") or 0)
+        sort = filters.get("sort") or "featured"
+        page = max(1, (skip // max(limit, 1)) + 1)
 
-        r = await self.client.get("/api/v1/products", params=params)
-        r.raise_for_status()
-        data = r.json()
-        raw_items = data.get("items") or data.get("products") or data.get("data") or []
-        return [self._normalize_product(p) for p in raw_items]
+        # First try catalog-v2 endpoint that supports category slugs directly.
+        candidates: list[tuple[str, dict[str, Any]]] = [
+            (
+                "/api/v2/catalog",
+                {
+                    "category": category_slug or None,
+                    "sort_by": self._map_sort(sort),
+                    "page": page,
+                    "limit": limit,
+                },
+            ),
+            (
+                "/api/v1/products",
+                {
+                    "q": q or None,
+                    "category": category_slug or None,
+                    "limit": limit,
+                    "offset": skip,
+                    "sort": sort,
+                },
+            ),
+        ]
+
+        if q:
+            candidates.insert(
+                0,
+                (
+                    "/api/products",
+                    {
+                        "search": q,
+                        "sort_by": self._map_sort(sort),
+                        "sort_order": "asc" if sort == "price_asc" else "desc",
+                        "page": page,
+                        "limit": limit,
+                    },
+                ),
+            )
+
+        cat_id = None
+        if category_slug:
+            cat_id = await self._resolve_category_id_by_slug(category_slug)
+            if cat_id:
+                candidates.insert(
+                    0,
+                    (
+                        "/api/products",
+                        {
+                            "category_id": cat_id,
+                            "search": q or None,
+                            "sort_by": self._map_sort(sort),
+                            "sort_order": "asc" if sort == "price_asc" else "desc",
+                            "page": page,
+                            "limit": limit,
+                        },
+                    ),
+                )
+
+        last_err: Optional[Exception] = None
+        for path, raw_params in candidates:
+            params = {k: v for k, v in raw_params.items()
+                      if v not in (None, "")}
+            try:
+                r = await self.client.get(path, params=params)
+                if r.status_code == 404:
+                    continue
+                r.raise_for_status()
+                data = r.json()
+                raw_items = data.get("items") or data.get(
+                    "products") or data.get("data") or []
+                items = [self._normalize_product(p) for p in raw_items]
+                total = int(data.get("total") or len(items))
+                return {"items": items, "total": total}
+            except httpx.HTTPError as e:
+                last_err = e
+
+        raise SiteAdapterError(
+            f"Cannot list products via site API: {last_err}")
 
     async def get_product(self, product_id: str) -> Optional[dict]:
         """Один товар + related."""
         if not self.enabled:
             raise SiteAdapterError("site_adapter not enabled")
 
-        r = await self.client.get(f"/api/v1/products/{product_id}")
-        if r.status_code == 404:
+        prod = None
+        prod_err: Optional[Exception] = None
+        for path in (
+            f"/api/products/{product_id}",
+            f"/api/v1/products/{product_id}",
+        ):
+            try:
+                r = await self.client.get(path)
+                if r.status_code == 404:
+                    continue
+                r.raise_for_status()
+                prod = self._normalize_product(r.json())
+                break
+            except httpx.HTTPError as e:
+                prod_err = e
+
+        if prod is None:
+            if prod_err:
+                raise SiteAdapterError(
+                    f"Cannot fetch product {product_id}: {prod_err}")
             return None
-        r.raise_for_status()
-        prod = self._normalize_product(r.json())
 
         # related
         related: list[dict] = []
         try:
-            rr = await self.client.get(
-                f"/api/v1/products/{product_id}/related",
-                params={"limit": 6},
-            )
+            rr = await self.client.get(f"/api/v1/products/{product_id}/related", params={"limit": 6})
             if rr.status_code == 200:
-                raw_related = rr.json().get("items") or []
+                raw_related = rr.json().get("items") or rr.json().get("products") or []
                 related = [self._normalize_product(p) for p in raw_related]
         except httpx.HTTPError as e:
+            # Fallback for stores without a dedicated related endpoint.
+            try:
+                category_id = prod.get("category_id")
+                if category_id:
+                    lr = await self.client.get(
+                        "/api/products",
+                        params={"category_id": category_id,
+                                "page": 1, "limit": 8},
+                    )
+                    if lr.status_code == 200:
+                        raw_related = lr.json().get("items") or lr.json().get("products") or []
+                        normalized = [self._normalize_product(
+                            p) for p in raw_related]
+                        related = [p for p in normalized if p.get(
+                            "id") != str(product_id)][:6]
+            except httpx.HTTPError as ie:
+                logger.warning(
+                    f"site_adapter.get_product related fallback failed: {ie}")
             logger.warning(f"site_adapter.get_product related failed: {e}")
         prod["related"] = related
         return prod
@@ -128,11 +226,24 @@ class SiteAdapter:
         if not self.enabled:
             raise SiteAdapterError("site_adapter not enabled")
 
-        r = await self.client.get("/api/v1/categories")
-        r.raise_for_status()
-        data = r.json()
-        raw_items = data.get("items") or data.get("categories") or data.get("data") or []
-        return [self._normalize_category(c) for c in raw_items]
+        last_err: Optional[Exception] = None
+        for path in ("/api/categories", "/api/v1/categories", "/api/v2/categories/tree"):
+            try:
+                r = await self.client.get(path)
+                if r.status_code == 404:
+                    continue
+                r.raise_for_status()
+                data = r.json()
+                raw_items = data.get("items") or data.get(
+                    "categories") or data.get("data") or []
+                if path.endswith("/tree"):
+                    raw_items = self._flatten_tree(raw_items)
+                return [self._normalize_category(c) for c in raw_items]
+            except httpx.HTTPError as e:
+                last_err = e
+
+        raise SiteAdapterError(
+            f"Cannot list categories via site API: {last_err}")
 
     # ======================= Orders =======================
 
@@ -150,14 +261,29 @@ class SiteAdapter:
             raise SiteAdapterError("site_adapter not enabled")
 
         payload = self._map_order(tma_order)
-        r = await self.client.post("/api/v1/orders/import", json=payload)
-        r.raise_for_status()
-        data = r.json()
-        return {
-            "ok": True,
-            "site_order_id": str(data.get("id") or data.get("order_id") or ""),
-            "crm_url": data.get("admin_url") or data.get("crm_url"),
-        }
+        last_err: Optional[Exception] = None
+
+        for path, body in (
+            ("/api/v1/orders/import", payload),
+            ("/api/orders/import", payload),
+            ("/api/orders", self._map_order_for_orders_endpoint(tma_order)),
+        ):
+            try:
+                r = await self.client.post(path, json=body)
+                if r.status_code in (401, 403, 404):
+                    continue
+                r.raise_for_status()
+                data = r.json() if "application/json" in r.headers.get("content-type", "") else {}
+                return {
+                    "ok": True,
+                    "site_order_id": str(data.get("id") or data.get("order_id") or ""),
+                    "crm_url": data.get("admin_url") or data.get("crm_url"),
+                }
+            except httpx.HTTPError as e:
+                last_err = e
+
+        raise SiteAdapterError(
+            f"Cannot register order in site backend: {last_err}")
 
     # ======================= Users =======================
 
@@ -175,21 +301,64 @@ class SiteAdapter:
         if not self.enabled:
             return None
 
+        payload = {
+            "telegram_id": telegram_id,
+            "telegram_username": telegram_username,
+            "phone": phone,
+        }
+
+        for method, path in (
+            ("post", "/api/v1/users/match"),
+            ("post", "/api/users/match"),
+            ("get", "/api/customers/by-phone"),
+        ):
+            try:
+                if method == "post":
+                    r = await self.client.post(path, json=payload)
+                else:
+                    if not phone:
+                        continue
+                    r = await self.client.get(path, params={"phone": phone})
+
+                if r.status_code != 200:
+                    continue
+                data = r.json()
+                if data:
+                    return data
+            except httpx.HTTPError as e:
+                logger.warning(
+                    f"site_adapter.match_user failed via {path}: {e}")
+        return None
+
+    def _map_sort(self, sort: str) -> str:
+        mapping = {
+            "featured": "popular",
+            "new": "new",
+            "price_asc": "price_asc",
+            "price_desc": "price_desc",
+        }
+        return mapping.get(sort, "popular")
+
+    async def _resolve_category_id_by_slug(self, slug: str) -> Optional[str]:
         try:
-            r = await self.client.post(
-                "/api/v1/users/match",
-                json={
-                    "telegram_id": telegram_id,
-                    "telegram_username": telegram_username,
-                    "phone": phone,
-                },
-            )
-            if r.status_code != 200:
-                return None
-            return r.json()
-        except httpx.HTTPError as e:
-            logger.warning(f"site_adapter.match_user failed: {e}")
+            cats = await self.list_categories()
+            for c in cats:
+                if c.get("slug") == slug:
+                    return str(c.get("id") or "")
+        except Exception:
             return None
+        return None
+
+    def _flatten_tree(self, items: list[dict]) -> list[dict]:
+        flat: list[dict] = []
+        stack = list(items)
+        while stack:
+            node = stack.pop(0)
+            flat.append({k: v for k, v in node.items() if k != "children"})
+            children = node.get("children") or []
+            if children:
+                stack.extend(children)
+        return flat
 
     # ======================= Normalizers =======================
     # ⚠️ ЦЕ СКЕЛЕТИ. Дев заповнить під реальну схему відповідей сайту.
@@ -284,6 +453,22 @@ class SiteAdapter:
             },
             "created_at": o.get("created_at"),
             "updated_at": o.get("updated_at"),
+        }
+
+    def _map_order_for_orders_endpoint(self, o: dict) -> dict:
+        customer = o.get("customer") or {}
+        delivery = o.get("delivery") or {}
+        return {
+            "shipping": {
+                "full_name": customer.get("full_name") or "",
+                "phone": customer.get("phone") or "",
+                "city": delivery.get("city_name") or "",
+                "address": delivery.get("warehouse_name") or "",
+                "np_department": delivery.get("warehouse_name") or "",
+                "notes": o.get("comment") or "",
+            },
+            "payment_method": "cash" if o.get("payment_method") in ("cash", "cash_on_delivery") else "card",
+            "notes": f"Imported from TMA order {o.get('order_number')}",
         }
 
 

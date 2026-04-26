@@ -3,19 +3,22 @@
  * Handles all backend communication
  */
 
-import axios from 'axios';
-import telegram from './telegram-sdk';
+import axios from "axios";
+import telegram from "./telegram-sdk";
 
-const API_BASE = process.env.REACT_APP_BACKEND_URL || '';
+const TMA_API_BASE =
+  process.env.REACT_APP_TMA_BACKEND_URL ||
+  process.env.REACT_APP_BACKEND_URL ||
+  "";
 
 class APIClient {
   constructor() {
     this.token = null;
     this.axios = axios.create({
-      baseURL: `${API_BASE}/api/tma`,
+      baseURL: `${TMA_API_BASE}/api/tma`,
       timeout: 15000,
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
 
@@ -27,7 +30,7 @@ class APIClient {
         }
         return config;
       },
-      (error) => Promise.reject(error)
+      (error) => Promise.reject(error),
     );
 
     // Response interceptor
@@ -38,62 +41,89 @@ class APIClient {
           this.clearAuth();
         }
         return Promise.reject(error);
-      }
+      },
     );
+  }
+
+  normalizePath(path = "") {
+    if (!path) return "/";
+    if (path.startsWith("/api/tma/")) return path.replace("/api/tma", "");
+    if (path.startsWith("/tma/")) return path.replace("/tma", "");
+    return path;
+  }
+
+  async get(path, config = {}) {
+    return this.axios.get(this.normalizePath(path), config);
+  }
+
+  async post(path, data = {}, config = {}) {
+    return this.axios.post(this.normalizePath(path), data, config);
+  }
+
+  async put(path, data = {}, config = {}) {
+    return this.axios.put(this.normalizePath(path), data, config);
+  }
+
+  async patch(path, data = {}, config = {}) {
+    return this.axios.patch(this.normalizePath(path), data, config);
+  }
+
+  async delete(path, config = {}) {
+    return this.axios.delete(this.normalizePath(path), config);
   }
 
   setToken(token) {
     this.token = token;
     if (token) {
-      localStorage.setItem('tma_token', token);
+      localStorage.setItem("tma_token", token);
     } else {
-      localStorage.removeItem('tma_token');
+      localStorage.removeItem("tma_token");
     }
   }
 
   getToken() {
     if (!this.token) {
-      this.token = localStorage.getItem('tma_token');
+      this.token = localStorage.getItem("tma_token");
     }
     return this.token;
   }
 
   clearAuth() {
     this.token = null;
-    localStorage.removeItem('tma_token');
-    localStorage.removeItem('tma_user');
+    localStorage.removeItem("tma_token");
+    localStorage.removeItem("tma_user");
   }
 
   // Auth
   async authenticate() {
     const initData = telegram.getInitData();
-    
+
     // If no initData (browser testing), use sandbox mode
-    const authData = initData || 'sandbox:1';
-    
-    const response = await this.axios.post('/auth', { init_data: authData });
+    const authData = initData || "sandbox:1";
+
+    const response = await this.axios.post("/auth", { init_data: authData });
     this.setToken(response.token);
-    localStorage.setItem('tma_user', JSON.stringify(response.user));
+    localStorage.setItem("tma_user", JSON.stringify(response.user));
     return response;
   }
 
   async getMe() {
-    return this.axios.get('/me');
+    return this.axios.get("/me");
   }
 
   // Home
   async getHome() {
-    return this.axios.get('/home');
+    return this.axios.get("/home");
   }
 
   // Categories
   async getCategories() {
-    return this.axios.get('/categories');
+    return this.axios.get("/categories");
   }
 
   // Products
   async getProducts(params = {}) {
-    return this.axios.get('/products', { params });
+    return this.axios.get("/products", { params });
   }
 
   async getProduct(id) {
@@ -102,25 +132,25 @@ class APIClient {
 
   // Search
   async searchSuggest(query) {
-    return this.axios.get('/search/suggest', { params: { q: query } });
+    return this.axios.get("/search/suggest", { params: { q: query } });
   }
 
   async searchProducts(query) {
-    return this.axios.get('/products', { params: { q: query } });
+    return this.axios.get("/products", { params: { q: query } });
   }
 
   // Cart
   async previewCart(items) {
-    return this.axios.post('/cart/preview', { items });
+    return this.axios.post("/cart/preview", { items });
   }
 
   // Orders
   async createOrder(data) {
-    return this.axios.post('/orders', data);
+    return this.axios.post("/orders", data);
   }
 
   async getOrders() {
-    return this.axios.get('/orders');
+    return this.axios.get("/orders");
   }
 
   async getOrder(id) {
@@ -137,15 +167,15 @@ class APIClient {
 
   // Favorites
   async getFavorites() {
-    return this.axios.get('/favorites');
+    return this.axios.get("/favorites");
   }
 
   async getFavoriteIds() {
-    return this.axios.get('/favorites/ids');
+    return this.axios.get("/favorites/ids");
   }
 
   async toggleFavorite(productId) {
-    return this.axios.post('/favorites/toggle', { product_id: productId });
+    return this.axios.post("/favorites/toggle", { product_id: productId });
   }
 
   // Reviews
@@ -154,16 +184,16 @@ class APIClient {
   }
 
   async createReview(data) {
-    return this.axios.post('/reviews', data);
+    return this.axios.post("/reviews", data);
   }
 
   // Support
   async getSupportTickets() {
-    return this.axios.get('/support/tickets');
+    return this.axios.get("/support/my-tickets");
   }
 
   async createSupportTicket(data) {
-    return this.axios.post('/support/tickets', data);
+    return this.axios.post("/support/ticket", data);
   }
 }
 

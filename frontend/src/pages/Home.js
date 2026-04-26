@@ -1,29 +1,33 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import { categoriesAPI, productsAPI } from '../utils/api';
-import CustomSection from '../components/CustomSection';
-import SEO from '../components/SEO';
-import FeaturedReviews from '../components/FeaturedReviews';
-import { useLanguage } from '../contexts/LanguageContext';
-import { OrganizationSchema, WebSiteSchema, LocalBusinessSchema } from '../components/seo';
-import useIsMobile from '../hooks/useIsMobile';
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import { categoriesAPI, productsAPI } from "../utils/api";
+import CustomSection from "../components/CustomSection";
+import SEO from "../components/SEO";
+import FeaturedReviews from "../components/FeaturedReviews";
+import { useLanguage } from "../contexts/LanguageContext";
+import {
+  OrganizationSchema,
+  WebSiteSchema,
+  LocalBusinessSchema,
+} from "../components/seo/index";
+import useIsMobile from "../hooks/useIsMobile";
 
-import { 
-  DealOfDay, 
-  PromoGrid, 
-  BrandsStrip, 
-  AdvantagesStrip, 
-  Testimonials, 
+import {
+  DealOfDay,
+  PromoGrid,
+  BrandsStrip,
+  AdvantagesStrip,
+  Testimonials,
   HeroCarousel,
   ProductSection,
   RecentlyViewed,
   NewsletterBlock,
   NewArrivals,
   MiniBannersRow,
-  HomeSidebar
-} from '../components/home';
-import MobileCategoriesSlider from '../components/home/MobileCategoriesSlider';
+  HomeSidebar,
+} from "../components/home";
+import MobileCategoriesSlider from "../components/home/MobileCategoriesSlider";
 
 const Home = () => {
   const navigate = useNavigate();
@@ -45,20 +49,22 @@ const Home = () => {
       setLoading(true);
       const [categoriesRes, featuredRes, sectionsRes] = await Promise.all([
         categoriesAPI.getAll(),
-        productsAPI.getAll({ limit: 12, sort_by: 'popularity' }),
+        productsAPI.getAll({ limit: 12, sort_by: "popularity" }),
         axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/custom-sections`),
       ]);
-      
+
       // Получаем бестселлеры
       const bestsellersRes = await productsAPI.getAll({ limit: 12 });
-      const bestsellersData = bestsellersRes.data.filter(p => p.is_bestseller) || bestsellersRes.data.slice(0, 8);
-      
+      const bestsellersData =
+        bestsellersRes.data.filter((p) => p.is_bestseller) ||
+        bestsellersRes.data.slice(0, 8);
+
       setCategories(categoriesRes.data);
       setFeaturedProducts(featuredRes.data);
       setBestsellers(bestsellersData);
       setCustomSections(sectionsRes.data);
     } catch (error) {
-      console.error('Failed to fetch data:', error);
+      console.error("Failed to fetch data:", error);
     } finally {
       setLoading(false);
     }
@@ -75,16 +81,16 @@ const Home = () => {
         {/* Hero Section with Category Sidebar - FIXED LAYOUT */}
         <section className="ys-section">
           <div className="ys-container">
-            <div 
-              className="ys-home-hero" 
+            <div
+              className="ys-home-hero"
               data-layout="sidebar-banner"
-              style={{ 
-                display: 'grid', 
+              style={{
+                display: "grid",
                 /* PROTECTED: Always show sidebar space on desktop */
-                gridTemplateColumns: isMobile ? '1fr' : '280px 1fr', 
-                gap: '20px', 
-                alignItems: 'stretch',
-                width: '100%'
+                gridTemplateColumns: isMobile ? "1fr" : "280px 1fr",
+                gap: "20px",
+                alignItems: "stretch",
+                width: "100%",
               }}
             >
               {/* PROTECTED: HomeSidebar always rendered on desktop, it handles loading internally */}
@@ -106,7 +112,11 @@ const Home = () => {
         {/* 1. ТОВАР сразу после баннера - Топ продажів */}
         <section className="ys-section">
           <div className="ys-container">
-            <ProductSection title="Топ продажів" sort="popular" link="/catalog?sort=popular" />
+            <ProductSection
+              title="Топ продажів"
+              sort="popular"
+              link="/catalog?sort=popular"
+            />
           </div>
         </section>
 

@@ -1,40 +1,64 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { 
-  Star, Heart, GitCompare, ShoppingCart, Share2, ChevronRight, ChevronDown, ChevronUp,
-  Truck, CreditCard, Shield, Clock, CheckCircle, Package, Info, Eye, AlertTriangle,
-  Phone, MessageCircle, Zap, Award, RefreshCw, Percent
-} from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { useCart } from '../contexts/CartContext';
-import { useFavorites } from '../contexts/FavoritesContext';
-import { useComparison } from '../contexts/ComparisonContext';
-import { useLanguage } from '../contexts/LanguageContext';
-import { productsAPI, reviewsAPI } from '../utils/api';
-import { Button } from '../components/ui/button';
-import { toast } from 'sonner';
-import AIRecommendations from '../components/AIRecommendations';
-import ProductCardCompact from '../components/ProductCardCompact';
-import ShareModal from '../components/ShareModal';
-import { trackProductView, trackAddToCart } from '../lib/track';
-import MobileBuyBar from '../components/product/MobileBuyBar';
-import { addToRecentlyViewed } from '../components/home/RecentlyViewed';
+import React, { useState, useEffect, useRef } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import {
+  Star,
+  Heart,
+  GitCompare,
+  ShoppingCart,
+  Share2,
+  ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  Truck,
+  CreditCard,
+  Shield,
+  Clock,
+  CheckCircle,
+  Package,
+  Info,
+  Eye,
+  AlertTriangle,
+  Phone,
+  MessageCircle,
+  Zap,
+  Award,
+  RefreshCw,
+  Percent,
+} from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
+import { useCart } from "../contexts/CartContext";
+import { useFavorites } from "../contexts/FavoritesContext";
+import { useComparison } from "../contexts/ComparisonContext";
+import { useLanguage } from "../contexts/LanguageContext";
+import { productsAPI, reviewsAPI } from "../utils/api";
+import { Button } from "../components/ui/button";
+import { toast } from "sonner";
+import AIRecommendations from "../components/AIRecommendations";
+import ProductCardCompact from "../components/ProductCardCompact";
+import ShareModal from "../components/ShareModal";
+import { trackProductView, trackAddToCart } from "../lib/track";
+import MobileBuyBar from "../components/product/MobileBuyBar";
+import { addToRecentlyViewed } from "../components/home/RecentlyViewed";
 // V2-24: SEO
-import { SEOMeta, ProductSchema, BreadcrumbSchema } from '../components/seo';
+import {
+  SEOMeta,
+  ProductSchema,
+  BreadcrumbSchema,
+} from "../components/seo/index";
 
 // ============ GALLERY V3 ============
 const GalleryV3 = ({ images = [], videos = [], productTitle, discount }) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isZoomed, setIsZoomed] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 50, y: 50 });
-  
+
   const media = [
-    ...images.map(img => ({ type: 'image', url: img })),
-    ...videos.map(vid => ({ type: 'video', url: vid }))
+    ...images.map((img) => ({ type: "image", url: img })),
+    ...videos.map((vid) => ({ type: "video", url: vid })),
   ];
 
   if (media.length === 0) {
-    media.push({ type: 'image', url: 'https://via.placeholder.com/600' });
+    media.push({ type: "image", url: "https://via.placeholder.com/600" });
   }
 
   const currentMedia = media[selectedIndex];
@@ -57,8 +81,8 @@ const GalleryV3 = ({ images = [], videos = [], productTitle, discount }) => {
               onClick={() => setSelectedIndex(index)}
               className={`aspect-square border-2 rounded-lg overflow-hidden transition-all ${
                 selectedIndex === index
-                  ? 'border-green-500 ring-2 ring-green-200'
-                  : 'border-gray-200 hover:border-gray-400'
+                  ? "border-green-500 ring-2 ring-green-200"
+                  : "border-gray-200 hover:border-gray-400"
               }`}
             >
               <img
@@ -73,9 +97,9 @@ const GalleryV3 = ({ images = [], videos = [], productTitle, discount }) => {
 
       {/* Main Image */}
       <div className="flex-1 relative">
-        <div 
+        <div
           className="relative bg-white rounded-2xl border border-gray-200 overflow-hidden cursor-zoom-in"
-          style={{ paddingBottom: '100%' }}
+          style={{ paddingBottom: "100%" }}
           onMouseMove={handleMouseMove}
           onMouseEnter={() => setIsZoomed(true)}
           onMouseLeave={() => setIsZoomed(false)}
@@ -94,7 +118,7 @@ const GalleryV3 = ({ images = [], videos = [], productTitle, discount }) => {
               alt={productTitle}
               className="max-w-full max-h-full object-contain transition-transform duration-200"
               style={{
-                transform: isZoomed ? 'scale(1.8)' : 'scale(1)',
+                transform: isZoomed ? "scale(1.8)" : "scale(1)",
                 transformOrigin: `${mousePosition.x}% ${mousePosition.y}%`,
               }}
             />
@@ -105,15 +129,21 @@ const GalleryV3 = ({ images = [], videos = [], productTitle, discount }) => {
         <div className="flex gap-2 mt-4 flex-wrap">
           <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
             <Shield className="w-4 h-4 text-green-600" />
-            <span className="text-sm font-medium text-green-700">Гарантія 12 міс</span>
+            <span className="text-sm font-medium text-green-700">
+              Гарантія 12 міс
+            </span>
           </div>
           <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
             <Truck className="w-4 h-4 text-blue-600" />
-            <span className="text-sm font-medium text-blue-700">Безкоштовна доставка</span>
+            <span className="text-sm font-medium text-blue-700">
+              Безкоштовна доставка
+            </span>
           </div>
           <div className="flex items-center gap-2 px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg">
             <RefreshCw className="w-4 h-4 text-purple-600" />
-            <span className="text-sm font-medium text-purple-700">Повернення 14 днів</span>
+            <span className="text-sm font-medium text-purple-700">
+              Повернення 14 днів
+            </span>
           </div>
         </div>
       </div>
@@ -122,11 +152,18 @@ const GalleryV3 = ({ images = [], videos = [], productTitle, discount }) => {
 };
 
 // ============ STICKY BUY PANEL ============
-const StickyBuyPanel = ({ product, quantity, onQuantityChange, onAddToCart, onBuyNow, isVisible }) => {
+const StickyBuyPanel = ({
+  product,
+  quantity,
+  onQuantityChange,
+  onAddToCart,
+  onBuyNow,
+  isVisible,
+}) => {
   if (!isVisible) return null;
 
   return (
-    <div 
+    <div
       className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-200 shadow-2xl z-50 transform transition-transform duration-300"
       data-testid="sticky-buy-panel"
     >
@@ -135,16 +172,22 @@ const StickyBuyPanel = ({ product, quantity, onQuantityChange, onAddToCart, onBu
           {/* Product Info */}
           <div className="flex items-center gap-4 flex-1 min-w-0">
             <img
-              src={product.images?.[0] || 'https://via.placeholder.com/60'}
+              src={product.images?.[0] || "https://via.placeholder.com/60"}
               alt={product.title}
               className="w-14 h-14 object-cover rounded-lg flex-shrink-0"
             />
             <div className="min-w-0">
-              <h4 className="font-semibold text-gray-900 truncate">{product.title}</h4>
+              <h4 className="font-semibold text-gray-900 truncate">
+                {product.title}
+              </h4>
               <div className="flex items-center gap-2">
-                <span className="text-xl font-bold text-green-600">{product.price?.toLocaleString()} ₴</span>
+                <span className="text-xl font-bold text-green-600">
+                  {product.price?.toLocaleString()} ₴
+                </span>
                 {product.compare_price && (
-                  <span className="text-sm text-gray-400 line-through">{product.compare_price?.toLocaleString()} ₴</span>
+                  <span className="text-sm text-gray-400 line-through">
+                    {product.compare_price?.toLocaleString()} ₴
+                  </span>
                 )}
               </div>
             </div>
@@ -160,9 +203,13 @@ const StickyBuyPanel = ({ product, quantity, onQuantityChange, onAddToCart, onBu
               >
                 -
               </button>
-              <span className="px-3 py-2 font-semibold min-w-[40px] text-center">{quantity}</span>
+              <span className="px-3 py-2 font-semibold min-w-[40px] text-center">
+                {quantity}
+              </span>
               <button
-                onClick={() => onQuantityChange(Math.min(product.stock_level, quantity + 1))}
+                onClick={() =>
+                  onQuantityChange(Math.min(product.stock_level, quantity + 1))
+                }
                 className="px-3 py-2 hover:bg-gray-100 transition-colors"
               >
                 +
@@ -174,8 +221,7 @@ const StickyBuyPanel = ({ product, quantity, onQuantityChange, onAddToCart, onBu
               variant="outline"
               className="hidden md:flex"
             >
-              <ShoppingCart className="w-4 h-4 mr-2" />
-              В кошик
+              <ShoppingCart className="w-4 h-4 mr-2" />В кошик
             </Button>
 
             <Button
@@ -194,26 +240,38 @@ const StickyBuyPanel = ({ product, quantity, onQuantityChange, onAddToCart, onBu
 // ============ SPECIFICATIONS TABLE ============
 const SpecificationsTable = ({ product }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  
+
   // Build specifications from product data
   const specs = [];
-  
+
   // Add from specifications array if exists
   if (product.specifications && Array.isArray(product.specifications)) {
-    product.specifications.forEach(group => {
+    product.specifications.forEach((group) => {
       if (group.fields) {
-        group.fields.forEach(field => {
+        group.fields.forEach((field) => {
           specs.push({ key: field.key, value: field.value });
         });
       }
     });
   }
-  
+
   // Add basic info
-  specs.push({ key: 'Артикул', value: product.id?.substring(0, 8).toUpperCase() });
-  specs.push({ key: 'Категорія', value: product.category_name || product.category_id });
-  specs.push({ key: 'Наявність', value: product.stock_level > 0 ? `${product.stock_level} шт.` : 'Немає в наявності' });
-  
+  specs.push({
+    key: "Артикул",
+    value: product.id?.substring(0, 8).toUpperCase(),
+  });
+  specs.push({
+    key: "Категорія",
+    value: product.category_name || product.category_id,
+  });
+  specs.push({
+    key: "Наявність",
+    value:
+      product.stock_level > 0
+        ? `${product.stock_level} шт.`
+        : "Немає в наявності",
+  });
+
   const visibleSpecs = isExpanded ? specs : specs.slice(0, 6);
 
   return (
@@ -223,7 +281,7 @@ const SpecificationsTable = ({ product }) => {
       </h3>
       <div className="divide-y divide-gray-100">
         {visibleSpecs.map((spec, index) => (
-          <div 
+          <div
             key={index}
             className="grid grid-cols-2 gap-4 px-6 py-3 hover:bg-gray-50 transition-colors"
           >
@@ -263,7 +321,9 @@ const ReviewsSectionV3 = ({ productId, reviews = [] }) => {
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
         <h3 className="text-lg font-bold mb-4">Відгуки</h3>
-        <p className="text-gray-500 mb-4">Поки що немає відгуків. Будьте першим!</p>
+        <p className="text-gray-500 mb-4">
+          Поки що немає відгуків. Будьте першим!
+        </p>
         <Button variant="outline">Написати відгук</Button>
       </div>
     );
@@ -271,15 +331,19 @@ const ReviewsSectionV3 = ({ productId, reviews = [] }) => {
 
   // Calculate rating distribution
   const ratings = [5, 4, 3, 2, 1];
-  const ratingCounts = ratings.map(r => reviews.filter(rev => rev.rating === r).length);
-  const avgRating = (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1);
+  const ratingCounts = ratings.map(
+    (r) => reviews.filter((rev) => rev.rating === r).length,
+  );
+  const avgRating = (
+    reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+  ).toFixed(1);
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <h3 className="text-lg font-bold px-6 py-4 bg-gray-50 border-b border-gray-200">
         Відгуки ({reviews.length})
       </h3>
-      
+
       {/* Rating Summary */}
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center gap-8">
@@ -289,11 +353,13 @@ const ReviewsSectionV3 = ({ productId, reviews = [] }) => {
               {[...Array(5)].map((_, i) => (
                 <Star
                   key={i}
-                  className={`w-4 h-4 ${i < Math.round(avgRating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                  className={`w-4 h-4 ${i < Math.round(avgRating) ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`}
                 />
               ))}
             </div>
-            <div className="text-sm text-gray-500 mt-1">{reviews.length} відгуків</div>
+            <div className="text-sm text-gray-500 mt-1">
+              {reviews.length} відгуків
+            </div>
           </div>
           <div className="flex-1 space-y-1">
             {ratings.map((rating, idx) => (
@@ -301,12 +367,16 @@ const ReviewsSectionV3 = ({ productId, reviews = [] }) => {
                 <span className="text-sm text-gray-600 w-8">{rating}</span>
                 <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
                 <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className="h-full bg-yellow-400 rounded-full"
-                    style={{ width: `${(ratingCounts[idx] / reviews.length) * 100}%` }}
+                    style={{
+                      width: `${(ratingCounts[idx] / reviews.length) * 100}%`,
+                    }}
                   />
                 </div>
-                <span className="text-sm text-gray-500 w-8">{ratingCounts[idx]}</span>
+                <span className="text-sm text-gray-500 w-8">
+                  {ratingCounts[idx]}
+                </span>
               </div>
             ))}
           </div>
@@ -320,22 +390,24 @@ const ReviewsSectionV3 = ({ productId, reviews = [] }) => {
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
                 <span className="font-semibold text-green-600">
-                  {review.user_name?.[0]?.toUpperCase() || 'U'}
+                  {review.user_name?.[0]?.toUpperCase() || "U"}
                 </span>
               </div>
               <div>
-                <p className="font-semibold text-gray-900">{review.user_name || 'Покупець'}</p>
+                <p className="font-semibold text-gray-900">
+                  {review.user_name || "Покупець"}
+                </p>
                 <div className="flex items-center gap-2">
                   <div className="flex">
                     {[...Array(5)].map((_, i) => (
                       <Star
                         key={i}
-                        className={`w-3 h-3 ${i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                        className={`w-3 h-3 ${i < review.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`}
                       />
                     ))}
                   </div>
                   <span className="text-xs text-gray-500">
-                    {new Date(review.created_at).toLocaleDateString('uk-UA')}
+                    {new Date(review.created_at).toLocaleDateString("uk-UA")}
                   </span>
                 </div>
               </div>
@@ -350,7 +422,7 @@ const ReviewsSectionV3 = ({ productId, reviews = [] }) => {
           onClick={() => setShowAll(!showAll)}
           className="w-full py-4 text-green-600 font-medium hover:bg-gray-50 transition-colors border-t border-gray-200"
         >
-          {showAll ? 'Згорнути' : `Показати всі відгуки (${reviews.length})`}
+          {showAll ? "Згорнути" : `Показати всі відгуки (${reviews.length})`}
         </button>
       )}
     </div>
@@ -372,12 +444,14 @@ const SimilarProducts = ({ product }) => {
     try {
       const response = await productsAPI.getAll({
         category_id: product.category_id,
-        limit: 8
+        limit: 8,
       });
-      const filtered = response.data.filter(p => p.id !== product.id).slice(0, 6);
+      const filtered = response.data
+        .filter((p) => p.id !== product.id)
+        .slice(0, 6);
       setProducts(filtered);
     } catch (error) {
-      console.error('Failed to fetch similar products:', error);
+      console.error("Failed to fetch similar products:", error);
     } finally {
       setLoading(false);
     }
@@ -406,17 +480,18 @@ const ProductPageV3 = () => {
   const { isAuthenticated } = useAuth();
   const { addToCart } = useCart();
   const { addToFavorites, removeFromFavorites, isFavorite } = useFavorites();
-  const { addToComparison, removeFromComparison, isInComparison } = useComparison();
+  const { addToComparison, removeFromComparison, isInComparison } =
+    useComparison();
   const { t } = useLanguage();
-  
+
   const [product, setProduct] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
-  const [activeTab, setActiveTab] = useState('description');
+  const [activeTab, setActiveTab] = useState("description");
   const [showShareModal, setShowShareModal] = useState(false);
   const [showStickyPanel, setShowStickyPanel] = useState(false);
-  
+
   const buyButtonRef = useRef(null);
   const viewers = useState(Math.floor(Math.random() * 15) + 5)[0];
 
@@ -441,9 +516,9 @@ const ProductPageV3 = () => {
         setShowStickyPanel(rect.bottom < 0);
       }
     };
-    
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   const fetchProduct = async () => {
@@ -452,8 +527,8 @@ const ProductPageV3 = () => {
       const response = await productsAPI.getById(id);
       setProduct(response.data);
     } catch (error) {
-      console.error('Failed to fetch product:', error);
-      toast.error('Не вдалося завантажити товар');
+      console.error("Failed to fetch product:", error);
+      toast.error("Не вдалося завантажити товар");
     } finally {
       setLoading(false);
     }
@@ -464,15 +539,15 @@ const ProductPageV3 = () => {
       const response = await reviewsAPI.getByProduct(id);
       setReviews(response.data || []);
     } catch (error) {
-      console.error('Failed to fetch reviews:', error);
+      console.error("Failed to fetch reviews:", error);
     }
   };
 
   const handleAddToCart = async () => {
     trackAddToCart(product.id, quantity, product.price);
-    
+
     if (!isAuthenticated) {
-      navigate('/login');
+      navigate("/login");
       return;
     }
     await addToCart(product.id, quantity);
@@ -481,38 +556,38 @@ const ProductPageV3 = () => {
 
   const handleBuyNow = async () => {
     trackAddToCart(product.id, quantity, product.price);
-    
+
     if (!isAuthenticated) {
-      navigate('/login');
+      navigate("/login");
       return;
     }
     const result = await addToCart(product.id, quantity);
     if (result.success) {
-      setTimeout(() => navigate('/checkout'), 300);
+      setTimeout(() => navigate("/checkout"), 300);
     }
   };
 
   const toggleFavorite = () => {
     if (!isAuthenticated) {
-      navigate('/login');
+      navigate("/login");
       return;
     }
     if (isFavorite(product.id)) {
       removeFromFavorites(product.id);
-      toast.success('Видалено з обраного');
+      toast.success("Видалено з обраного");
     } else {
       addToFavorites(product);
-      toast.success('Додано до обраного');
+      toast.success("Додано до обраного");
     }
   };
 
   const toggleComparison = () => {
     if (isInComparison(product.id)) {
       removeFromComparison(product.id);
-      toast.success('Видалено з порівняння');
+      toast.success("Видалено з порівняння");
     } else {
       addToComparison(product);
-      toast.success('Додано до порівняння');
+      toast.success("Додано до порівняння");
     }
   };
 
@@ -540,82 +615,114 @@ const ProductPageV3 = () => {
     return (
       <div className="min-h-screen bg-gray-50 py-12">
         <div className="container-main px-4 text-center">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Товар не знайдено</h2>
-          <Button onClick={() => navigate('/products')}>Перейти до каталогу</Button>
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">
+            Товар не знайдено
+          </h2>
+          <Button onClick={() => navigate("/products")}>
+            Перейти до каталогу
+          </Button>
         </div>
       </div>
     );
   }
 
-  const images = product.images?.length > 0 ? product.images : ['https://via.placeholder.com/600'];
+  const images =
+    product.images?.length > 0
+      ? product.images
+      : ["https://via.placeholder.com/600"];
   const videos = product.videos || [];
   const discount = product.compare_price
-    ? Math.round(((product.compare_price - product.price) / product.compare_price) * 100)
+    ? Math.round(
+        ((product.compare_price - product.price) / product.compare_price) * 100,
+      )
     : 0;
 
   // V2-24: SEO breadcrumbs data
   const breadcrumbItems = [
-    { name: 'Головна', url: '/' },
-    { name: 'Каталог', url: '/catalog' },
-    ...(product.category_name ? [{ 
-      name: product.category_name, 
-      url: `/catalog?category=${product.category_id}` 
-    }] : []),
-    { name: product.title }
+    { name: "Головна", url: "/" },
+    { name: "Каталог", url: "/catalog" },
+    ...(product.category_name
+      ? [
+          {
+            name: product.category_name,
+            url: `/catalog?category=${product.category_id}`,
+          },
+        ]
+      : []),
+    { name: product.title },
   ];
 
   return (
     <div className="min-h-screen bg-gray-50" data-testid="product-page-v3">
       {/* V2-24: SEO Meta and Schema */}
-      <SEOMeta 
+      <SEOMeta
         title={product.title}
-        description={product.short_description || product.description?.substring(0, 160)}
+        description={
+          product.short_description || product.description?.substring(0, 160)
+        }
         image={images[0]}
         url={`/product/${product.slug || product.id}`}
         type="product"
         product={{
           price: product.price,
           stock: product.stock_level,
-          brand: product.brand
+          brand: product.brand,
         }}
       />
-      <ProductSchema product={{
-        name: product.title,
-        description: product.description,
-        images: images,
-        sku: product.sku || product.id,
-        brand: product.brand,
-        price: product.price,
-        stock: product.stock_level,
-        rating: product.rating,
-        reviews_count: product.reviews_count,
-        slug: product.slug || product.id
-      }} />
+      <ProductSchema
+        product={{
+          name: product.title,
+          description: product.description,
+          images: images,
+          sku: product.sku || product.id,
+          brand: product.brand,
+          price: product.price,
+          stock: product.stock_level,
+          rating: product.rating,
+          reviews_count: product.reviews_count,
+          slug: product.slug || product.id,
+        }}
+      />
       <BreadcrumbSchema items={breadcrumbItems} />
 
       <div className="container-main px-4 py-6">
         {/* Breadcrumbs */}
-        <nav className="flex items-center gap-2 text-sm text-gray-600 mb-6" data-testid="breadcrumbs">
-          <Link to="/" className="hover:text-green-600 transition-colors">Головна</Link>
+        <nav
+          className="flex items-center gap-2 text-sm text-gray-600 mb-6"
+          data-testid="breadcrumbs"
+        >
+          <Link to="/" className="hover:text-green-600 transition-colors">
+            Головна
+          </Link>
           <ChevronRight className="w-4 h-4" />
-          <Link to="/products" className="hover:text-green-600 transition-colors">Каталог</Link>
+          <Link
+            to="/products"
+            className="hover:text-green-600 transition-colors"
+          >
+            Каталог
+          </Link>
           {product.category_name && (
             <>
               <ChevronRight className="w-4 h-4" />
-              <Link to={`/catalog?category=${product.category_id}`} className="hover:text-green-600 transition-colors">
+              <Link
+                to={`/catalog?category=${product.category_id}`}
+                className="hover:text-green-600 transition-colors"
+              >
                 {product.category_name}
               </Link>
             </>
           )}
           <ChevronRight className="w-4 h-4" />
-          <span className="text-gray-900 font-medium truncate max-w-xs">{product.title}</span>
+          <span className="text-gray-900 font-medium truncate max-w-xs">
+            {product.title}
+          </span>
         </nav>
 
         {/* Main Product Section */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 mb-8">
           {/* Gallery - 3 columns */}
           <div className="lg:col-span-3">
-            <GalleryV3 
+            <GalleryV3
               images={images}
               videos={videos}
               productTitle={product.title}
@@ -627,7 +734,10 @@ const ProductPageV3 = () => {
           <div className="lg:col-span-2">
             <div className="bg-white rounded-xl border border-gray-200 p-6 sticky top-4">
               {/* Title */}
-              <h1 className="text-2xl font-bold text-gray-900 mb-3" data-testid="product-title">
+              <h1
+                className="text-2xl font-bold text-gray-900 mb-3"
+                data-testid="product-title"
+              >
                 {product.title}
               </h1>
 
@@ -636,16 +746,23 @@ const ProductPageV3 = () => {
                 <div className="flex items-center gap-1">
                   <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                   <span className="font-medium">{product.rating || 0}</span>
-                  <span className="text-gray-500">({product.reviews_count || reviews.length} відгуків)</span>
+                  <span className="text-gray-500">
+                    ({product.reviews_count || reviews.length} відгуків)
+                  </span>
                 </div>
                 <span className="text-gray-400">|</span>
-                <span className="text-gray-500">Код: {product.id?.substring(0, 8).toUpperCase()}</span>
+                <span className="text-gray-500">
+                  Код: {product.id?.substring(0, 8).toUpperCase()}
+                </span>
               </div>
 
               {/* Price */}
               <div className="border-y border-gray-200 py-4 mb-4">
                 <div className="flex items-baseline gap-3">
-                  <span className="text-3xl font-bold text-gray-900" data-testid="product-price">
+                  <span
+                    className="text-3xl font-bold text-gray-900"
+                    data-testid="product-price"
+                  >
                     {product.price?.toLocaleString()} ₴
                   </span>
                   {product.compare_price && (
@@ -661,7 +778,8 @@ const ProductPageV3 = () => {
                 </div>
                 {product.compare_price && (
                   <div className="mt-1 text-green-600 text-sm font-medium">
-                    Економія: {(product.compare_price - product.price).toLocaleString()} ₴
+                    Економія:{" "}
+                    {(product.compare_price - product.price).toLocaleString()} ₴
                   </div>
                 )}
               </div>
@@ -678,7 +796,9 @@ const ProductPageV3 = () => {
                 ) : (
                   <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-lg">
                     <AlertTriangle className="w-4 h-4 text-red-600" />
-                    <span className="text-red-700 font-medium">Немає в наявності</span>
+                    <span className="text-red-700 font-medium">
+                      Немає в наявності
+                    </span>
                   </div>
                 )}
               </div>
@@ -705,7 +825,9 @@ const ProductPageV3 = () => {
               {product.stock_level > 0 && (
                 <>
                   <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Кількість</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Кількість
+                    </label>
                     <div className="flex items-center gap-3">
                       <div className="flex items-center border border-gray-300 rounded-lg">
                         <button
@@ -715,11 +837,18 @@ const ProductPageV3 = () => {
                         >
                           -
                         </button>
-                        <span className="px-4 py-2 font-semibold min-w-[50px] text-center" data-testid="quantity-value">
+                        <span
+                          className="px-4 py-2 font-semibold min-w-[50px] text-center"
+                          data-testid="quantity-value"
+                        >
                           {quantity}
                         </span>
                         <button
-                          onClick={() => setQuantity(Math.min(product.stock_level, quantity + 1))}
+                          onClick={() =>
+                            setQuantity(
+                              Math.min(product.stock_level, quantity + 1),
+                            )
+                          }
                           className="px-4 py-2 hover:bg-gray-100 transition-colors text-lg"
                           data-testid="increase-quantity"
                         >
@@ -760,27 +889,31 @@ const ProductPageV3 = () => {
                   onClick={toggleFavorite}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                     isFavorite(product.id)
-                      ? 'text-red-600 bg-red-50'
-                      : 'text-gray-600 hover:bg-gray-100'
+                      ? "text-red-600 bg-red-50"
+                      : "text-gray-600 hover:bg-gray-100"
                   }`}
                   data-testid="favorite-button"
                 >
-                  <Heart className={`w-5 h-5 ${isFavorite(product.id) ? 'fill-current' : ''}`} />
+                  <Heart
+                    className={`w-5 h-5 ${isFavorite(product.id) ? "fill-current" : ""}`}
+                  />
                   <span className="text-sm font-medium hidden md:inline">
-                    {isFavorite(product.id) ? 'В обраному' : 'В обране'}
+                    {isFavorite(product.id) ? "В обраному" : "В обране"}
                   </span>
                 </button>
                 <button
                   onClick={toggleComparison}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                     isInComparison(product.id)
-                      ? 'text-blue-600 bg-blue-50'
-                      : 'text-gray-600 hover:bg-gray-100'
+                      ? "text-blue-600 bg-blue-50"
+                      : "text-gray-600 hover:bg-gray-100"
                   }`}
                   data-testid="compare-button"
                 >
                   <GitCompare className="w-5 h-5" />
-                  <span className="text-sm font-medium hidden md:inline">Порівняти</span>
+                  <span className="text-sm font-medium hidden md:inline">
+                    Порівняти
+                  </span>
                 </button>
                 <button
                   onClick={() => setShowShareModal(true)}
@@ -788,7 +921,9 @@ const ProductPageV3 = () => {
                   data-testid="share-button"
                 >
                   <Share2 className="w-5 h-5" />
-                  <span className="text-sm font-medium hidden md:inline">Поділитися</span>
+                  <span className="text-sm font-medium hidden md:inline">
+                    Поділитися
+                  </span>
                 </button>
               </div>
 
@@ -797,7 +932,9 @@ const ProductPageV3 = () => {
                 <div className="flex items-start gap-3">
                   <Truck className="w-5 h-5 text-green-600 mt-0.5" />
                   <div>
-                    <p className="font-medium text-gray-900">Доставка Новою Поштою</p>
+                    <p className="font-medium text-gray-900">
+                      Доставка Новою Поштою
+                    </p>
                     <p className="text-sm text-gray-500">1-3 робочих дні</p>
                   </div>
                 </div>
@@ -805,14 +942,18 @@ const ProductPageV3 = () => {
                   <CreditCard className="w-5 h-5 text-green-600 mt-0.5" />
                   <div>
                     <p className="font-medium text-gray-900">Оплата</p>
-                    <p className="text-sm text-gray-500">При отриманні або онлайн</p>
+                    <p className="text-sm text-gray-500">
+                      При отриманні або онлайн
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <Shield className="w-5 h-5 text-green-600 mt-0.5" />
                   <div>
                     <p className="font-medium text-gray-900">Гарантія</p>
-                    <p className="text-sm text-gray-500">Офіційна гарантія 12 місяців</p>
+                    <p className="text-sm text-gray-500">
+                      Офіційна гарантія 12 місяців
+                    </p>
                   </div>
                 </div>
               </div>
@@ -825,17 +966,17 @@ const ProductPageV3 = () => {
           {/* Tab Headers */}
           <div className="flex border-b border-gray-200 overflow-x-auto">
             {[
-              { id: 'description', label: 'Опис' },
-              { id: 'specifications', label: 'Характеристики' },
-              { id: 'reviews', label: `Відгуки (${reviews.length})` }
+              { id: "description", label: "Опис" },
+              { id: "specifications", label: "Характеристики" },
+              { id: "reviews", label: `Відгуки (${reviews.length})` },
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-6 py-4 font-semibold whitespace-nowrap transition-colors ${
                   activeTab === tab.id
-                    ? 'text-green-600 border-b-2 border-green-600'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? "text-green-600 border-b-2 border-green-600"
+                    : "text-gray-600 hover:text-gray-900"
                 }`}
                 data-testid={`tab-${tab.id}`}
               >
@@ -846,26 +987,31 @@ const ProductPageV3 = () => {
 
           {/* Tab Content */}
           <div className="p-6">
-            {activeTab === 'description' && (
-              <div className="prose prose-lg max-w-none" data-testid="description-content">
+            {activeTab === "description" && (
+              <div
+                className="prose prose-lg max-w-none"
+                data-testid="description-content"
+              >
                 {product.description_html ? (
-                  <div 
-                    dangerouslySetInnerHTML={{ __html: product.description_html }}
+                  <div
+                    dangerouslySetInnerHTML={{
+                      __html: product.description_html,
+                    }}
                     className="text-gray-700 leading-relaxed"
                   />
                 ) : (
                   <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                    {product.description || 'Опис товару відсутній.'}
+                    {product.description || "Опис товару відсутній."}
                   </p>
                 )}
               </div>
             )}
 
-            {activeTab === 'specifications' && (
+            {activeTab === "specifications" && (
               <SpecificationsTable product={product} />
             )}
 
-            {activeTab === 'reviews' && (
+            {activeTab === "reviews" && (
               <ReviewsSectionV3 productId={product.id} reviews={reviews} />
             )}
           </div>
@@ -876,7 +1022,9 @@ const ProductPageV3 = () => {
           <div className="flex items-start gap-3">
             <Info className="w-6 h-6 text-yellow-600 mt-0.5 flex-shrink-0" />
             <div>
-              <h3 className="font-bold text-lg text-gray-900 mb-3">Важлива інформація</h3>
+              <h3 className="font-bold text-lg text-gray-900 mb-3">
+                Важлива інформація
+              </h3>
               <ul className="space-y-2 text-gray-700">
                 <li className="flex items-start gap-2">
                   <span className="w-1.5 h-1.5 bg-yellow-600 rounded-full mt-2 flex-shrink-0"></span>
@@ -918,7 +1066,7 @@ const ProductPageV3 = () => {
 
       {/* Share Modal */}
       {product && (
-        <ShareModal 
+        <ShareModal
           isOpen={showShareModal}
           onClose={() => setShowShareModal(false)}
           product={product}
@@ -927,10 +1075,7 @@ const ProductPageV3 = () => {
 
       {/* V2-23: Mobile Buy Bar */}
       {product && product.stock_level > 0 && (
-        <MobileBuyBar 
-          product={product} 
-          onAdd={handleAddToCart}
-        />
+        <MobileBuyBar product={product} onAdd={handleAddToCart} />
       )}
     </div>
   );

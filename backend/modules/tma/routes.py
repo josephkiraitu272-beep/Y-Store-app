@@ -18,6 +18,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel
 
 from core.db import db
+from modules.tma.site_adapter import SiteAdapterError, site_adapter
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/tma", tags=["Telegram Mini App"])
@@ -153,7 +154,8 @@ class TMACheckoutRequest(BaseModel):
     # first_name / last_name — optional split for nicer invoices
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-    payment_method: str = "cash_on_delivery"  # 'card' | 'cash' | 'cash_on_delivery'
+    # 'card' | 'cash' | 'cash_on_delivery'
+    payment_method: str = "cash_on_delivery"
     comment: Optional[str] = None
 
 
@@ -190,7 +192,8 @@ async def tma_auth(payload: TMAInitRequest):
     if not BOT_TOKEN and not sandbox_mode:
         raise HTTPException(500, "Bot token not configured")
 
-    parsed = validate_init_data(payload.init_data, BOT_TOKEN) if BOT_TOKEN else None
+    parsed = validate_init_data(
+        payload.init_data, BOT_TOKEN) if BOT_TOKEN else None
 
     # Dev-режим: дозволити auth без підпису якщо передали пустий init_data
     # або sandbox (для тестування з браузера без Telegram)
@@ -220,7 +223,8 @@ async def tma_auth(payload: TMAInitRequest):
             {"$set": {
                 "telegram_username": tg_user.get("username"),
                 "full_name": existing.get("full_name") or (
-                    f"{tg_user.get('first_name','')} {tg_user.get('last_name','')}".strip()
+                    f"{tg_user.get('first_name', '')} {tg_user.get('last_name', '')}".strip(
+                    )
                 ),
                 "telegram_photo_url": tg_user.get("photo_url"),
                 "last_seen_at": now.isoformat(),
@@ -233,7 +237,7 @@ async def tma_auth(payload: TMAInitRequest):
             "telegram_id": tg_id,
             "telegram_username": tg_user.get("username"),
             "telegram_photo_url": tg_user.get("photo_url"),
-            "full_name": f"{tg_user.get('first_name','')} {tg_user.get('last_name','')}".strip() or "Користувач",
+            "full_name": f"{tg_user.get('first_name', '')} {tg_user.get('last_name', '')}".strip() or "Користувач",
             "email": None,
             "phone": None,
             "role": "customer",
@@ -253,6 +257,31 @@ async def tma_auth(payload: TMAInitRequest):
     user_doc = await db.users.find_one(
         {"id": user_id}, {"_id": 0, "password_hash": 0}
     )
+
+    # Optional bridge to main store customer profile.
+    if user_doc and site_adapter.enabled:
+        try:
+            matched = await site_adapter.match_user(
+                telegram_id=int(tg_id),
+                telegram_username=user_doc.get("telegram_username"),
+                phone=user_doc.get("phone"),
+            )
+            if matched:
+                update_doc = {
+                    "site_user_id": str(
+                        matched.get("site_user_id")
+                        or matched.get("id")
+                        or matched.get("user_id")
+                        or ""
+                    ),
+                    "site_profile": matched,
+                    "updated_at": now.isoformat(),
+                }
+                await db.users.update_one({"id": user_id}, {"$set": update_doc})
+                user_doc.update(update_doc)
+        except Exception as e:
+            logger.warning(f"site_adapter.match_user skipped: {e}")
+
     return {"token": token, "user": user_doc}
 
 
@@ -265,6 +294,15 @@ async def tma_me(user: dict = Depends(require_tma_user)):
 
 @router.get("/categories")
 async def tma_categories():
+    if site_adapter.enabled:
+        try:
+            out = await site_adapter.list_categories()
+            out.sort(key=lambda x: -int(x.get("product_count") or 0))
+            return out
+        except SiteAdapterError as e:
+            logger.warning(
+                f"site_adapter categories fallback to local db: {e}")
+
     cats = await db.categories.find({}, {"_id": 0}).to_list(100)
     out = []
     for c in cats:
@@ -288,6 +326,21 @@ async def tma_products(
     limit: int = 50,
     skip: int = 0,
 ):
+    if site_adapter.enabled:
+        try:
+            data = await site_adapter.list_products(
+                {
+                    "q": q,
+                    "category_slug": category,
+                    "sort": sort,
+                    "limit": limit,
+                    "skip": skip,
+                }
+            )
+            return data
+        except SiteAdapterError as e:
+            logger.warning(f"site_adapter products fallback to local db: {e}")
+
     query: dict[str, Any] = {}
     if category:
         query["$or"] = [{"category_slug": category}, {"category_id": category}]
@@ -309,7 +362,8 @@ async def tma_products(
     elif sort == "new":
         sort_spec = [("created_at", -1)]
 
-    cur = db.products.find(query, {"_id": 0}).sort(sort_spec).skip(skip).limit(limit)
+    cur = db.products.find(query, {"_id": 0}).sort(
+        sort_spec).skip(skip).limit(limit)
     items = [product_to_out(p) async for p in cur]
     total = await db.products.count_documents(query)
     return {"items": items, "total": total}
@@ -317,6 +371,17 @@ async def tma_products(
 
 @router.get("/products/{product_id}")
 async def tma_product(product_id: str):
+    if site_adapter.enabled:
+        try:
+            p = await site_adapter.get_product(product_id)
+            if p:
+                return p
+            logger.warning(
+                f"site_adapter product not found, fallback to local db: {product_id}"
+            )
+        except SiteAdapterError as e:
+            logger.warning(f"site_adapter product fallback to local db: {e}")
+
     p = await db.products.find_one({"id": product_id}, {"_id": 0})
     if not p:
         raise HTTPException(404, "Product not found")
@@ -386,11 +451,22 @@ async def tma_cart_preview(payload: TMACartPayload):
     """Швидкий розрахунок кошика без збереження."""
     if not payload.items:
         return {"items": [], "subtotal": 0, "count": 0}
-    pids = [i.product_id for i in payload.items]
-    prods = await db.products.find(
-        {"id": {"$in": pids}}, {"_id": 0}
-    ).to_list(len(pids))
-    pmap = {p["id"]: p for p in prods}
+    pmap: dict[str, dict[str, Any]] = {}
+    if site_adapter.enabled:
+        for item in payload.items:
+            try:
+                rp = await site_adapter.get_product(item.product_id)
+                if rp:
+                    pmap[item.product_id] = rp
+            except SiteAdapterError:
+                pass
+    if not pmap:
+        pids = [i.product_id for i in payload.items]
+        prods = await db.products.find(
+            {"id": {"$in": pids}}, {"_id": 0}
+        ).to_list(len(pids))
+        pmap = {p["id"]: p for p in prods}
+
     out_items = []
     subtotal = 0.0
     count = 0
@@ -423,11 +499,21 @@ async def tma_create_order(
     if not payload.items:
         raise HTTPException(400, "Cart is empty")
 
-    pids = [i.product_id for i in payload.items]
-    prods = await db.products.find(
-        {"id": {"$in": pids}}, {"_id": 0}
-    ).to_list(len(pids))
-    pmap = {p["id"]: p for p in prods}
+    pmap: dict[str, dict[str, Any]] = {}
+    if site_adapter.enabled:
+        for item in payload.items:
+            try:
+                rp = await site_adapter.get_product(item.product_id)
+                if rp:
+                    pmap[item.product_id] = rp
+            except SiteAdapterError:
+                pass
+    if not pmap:
+        pids = [i.product_id for i in payload.items]
+        prods = await db.products.find(
+            {"id": {"$in": pids}}, {"_id": 0}
+        ).to_list(len(pids))
+        pmap = {p["id"]: p for p in prods}
 
     order_items = []
     subtotal = 0.0
@@ -489,6 +575,29 @@ async def tma_create_order(
 
     await db.orders.insert_one(order_doc)
 
+    if site_adapter.enabled:
+        try:
+            site_sync = await site_adapter.register_order(order_doc)
+            await db.orders.update_one(
+                {"id": order_id},
+                {"$set": {
+                    "site_sync": {
+                        "ok": bool(site_sync.get("ok")),
+                        "site_order_id": site_sync.get("site_order_id"),
+                        "crm_url": site_sync.get("crm_url"),
+                        "synced_at": now.isoformat(),
+                    }
+                }},
+            )
+            order_doc["site_sync"] = {
+                "ok": bool(site_sync.get("ok")),
+                "site_order_id": site_sync.get("site_order_id"),
+                "crm_url": site_sync.get("crm_url"),
+                "synced_at": now.isoformat(),
+            }
+        except Exception as e:
+            logger.warning(f"register_order sync skipped: {e}")
+
     # --- WayForPay: для оплати карткою створюємо payment session і повертаємо payment_url ---
     payment_url = None
     if payload.payment_method in ("card", "wayforpay", "online", "prepaid"):
@@ -540,9 +649,11 @@ async def tma_create_order(
                     "method": pay.get("method"),
                 }
             else:
-                logger.warning("WayForPay not configured (missing merchant account/secret); skipping payment session")
+                logger.warning(
+                    "WayForPay not configured (missing merchant account/secret); skipping payment session")
         except Exception as e:
-            logger.error(f"WayForPay create_payment failed for {order_id}: {e}")
+            logger.error(
+                f"WayForPay create_payment failed for {order_id}: {e}")
 
     # Для cash_on_delivery (накладений платіж) — одразу створюємо реальну ТТН Нової Пошти
     if payload.payment_method in ("cash_on_delivery", "cash"):
@@ -552,14 +663,17 @@ async def tma_create_order(
             ttn_res = await actions.create_ttn(order_id)
             if ttn_res.get("ok"):
                 ttn = ttn_res.get("ttn")
-                logger.info(f"✅ Auto-TTN {ttn} created for cash order {order_id}")
+                logger.info(
+                    f"✅ Auto-TTN {ttn} created for cash order {order_id}")
                 # Reflect in returned doc
                 updated = await db.orders.find_one({"id": order_id}, {"_id": 0})
                 if updated:
                     order_doc["status"] = updated.get("status")
-                    order_doc["delivery"] = updated.get("delivery") or order_doc.get("delivery")
+                    order_doc["delivery"] = updated.get(
+                        "delivery") or order_doc.get("delivery")
             else:
-                logger.warning(f"Auto-TTN failed for {order_id}: {ttn_res.get('error')} {ttn_res.get('details')}")
+                logger.warning(
+                    f"Auto-TTN failed for {order_id}: {ttn_res.get('error')} {ttn_res.get('details')}")
         except Exception as e:
             logger.error(f"Auto-TTN error for {order_id}: {e}")
 
@@ -587,7 +701,8 @@ async def tma_create_order(
     try:
         import httpx
         settings_doc = await db.bot_settings.find_one({"id": "global"})
-        admin_ids = settings_doc.get("admin_chat_ids", []) if settings_doc else []
+        admin_ids = settings_doc.get(
+            "admin_chat_ids", []) if settings_doc else []
         if admin_ids and BOT_TOKEN:
             pay_label = "💳 Картка (WayForPay)" if payload.payment_method == "card" else "💵 Накладений платіж"
             status_label = "⏳ Очікує оплати" if payload.payment_method == "card" else "🆕 Новий"
@@ -617,7 +732,8 @@ async def tma_create_order(
             # Inline buttons: "Написати клієнту" + "Деталі"
             kb_rows = []
             if tg_link:
-                kb_rows.append([{"text": "💬 Написати клієнту", "url": tg_link}])
+                kb_rows.append(
+                    [{"text": "💬 Написати клієнту", "url": tg_link}])
             kb_rows.append([
                 {"text": "📦 Створити ТТН", "callback_data": f"create_ttn:{order_id}"},
                 {"text": "👁 Деталі", "callback_data": f"view_order:{order_id}"},
@@ -686,7 +802,8 @@ async def tma_delete_order(
     if not o:
         raise HTTPException(404, "Order not found")
 
-    allowed = {"new", "pending_payment", "awaiting_payment", "payment_failed", "cancelled"}
+    allowed = {"new", "pending_payment",
+               "awaiting_payment", "payment_failed", "cancelled"}
     if o.get("status") not in allowed:
         raise HTTPException(
             400,
@@ -754,7 +871,8 @@ async def tma_simulate_payment(
 
         import httpx as _httpx
         settings_doc = await db.bot_settings.find_one({"id": "global"})
-        admin_ids = settings_doc.get("admin_chat_ids", []) if settings_doc else []
+        admin_ids = settings_doc.get(
+            "admin_chat_ids", []) if settings_doc else []
         if admin_ids and BOT_TOKEN:
             msg = (
                 f"✅ <b>Оплату отримано (SIMULATION)</b>\n\n"
@@ -767,7 +885,8 @@ async def tma_simulate_payment(
                     try:
                         await c.post(
                             f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-                            json={"chat_id": cid, "text": msg, "parse_mode": "HTML"},
+                            json={"chat_id": cid, "text": msg,
+                                  "parse_mode": "HTML"},
                         )
                     except Exception:
                         pass
@@ -780,9 +899,11 @@ async def tma_simulate_payment(
         actions = BotActionsService(db)
         ttn_res = await actions.create_ttn(order_id)
         if ttn_res.get("ok"):
-            logger.info(f"✅ Auto-TTN created after simulation for order {order_id}: {ttn_res.get('ttn')}")
+            logger.info(
+                f"✅ Auto-TTN created after simulation for order {order_id}: {ttn_res.get('ttn')}")
         else:
-            logger.warning(f"Auto-TTN after simulation failed: {ttn_res.get('error')} {ttn_res.get('details')}")
+            logger.warning(
+                f"Auto-TTN after simulation failed: {ttn_res.get('error')} {ttn_res.get('details')}")
     except Exception as te:
         logger.warning(f"Auto-TTN after simulation error: {te}")
 
@@ -890,7 +1011,7 @@ async def get_my_orders(user: dict = Depends(require_tma_user)):
         {"buyer_id": user["id"]},
         {"_id": 0}
     ).sort("created_at", -1).limit(20).to_list(20)
-    
+
     return {"orders": orders}
 
 
@@ -912,7 +1033,7 @@ async def create_support_ticket(
     """
     ticket_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)
-    
+
     ticket = {
         "id": ticket_id,
         "user_id": user["id"],
@@ -926,17 +1047,17 @@ async def create_support_ticket(
         "created_at": now.isoformat(),
         "updated_at": now.isoformat(),
     }
-    
+
     await db.support_tickets.insert_one(ticket)
-    
+
     # Надіслати повідомлення адмінам в Telegram
     try:
         import httpx
         bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
-        
+
         # Знайти адмінів
         admins = await db.bot_admins.find({"active": True}, {"_id": 0}).to_list(100)
-        
+
         msg_text = (
             f"🆘 <b>Нове звернення в підтримку</b>\n\n"
             f"👤 <b>Користувач:</b> {ticket['user_name']}\n"
@@ -944,7 +1065,7 @@ async def create_support_ticket(
             f"💬 <b>Повідомлення:</b>\n{payload.message}\n\n"
             f"🆔 Ticket ID: <code>{ticket_id}</code>"
         )
-        
+
         async with httpx.AsyncClient() as client:
             for admin in admins:
                 try:
@@ -958,10 +1079,11 @@ async def create_support_ticket(
                         timeout=5.0
                     )
                 except Exception as e:
-                    logger.error(f"Failed to notify admin {admin['user_id']}: {e}")
+                    logger.error(
+                        f"Failed to notify admin {admin['user_id']}: {e}")
     except Exception as e:
         logger.error(f"Failed to send support notifications: {e}")
-    
+
     return {
         "success": True,
         "ticket_id": ticket_id,
@@ -978,7 +1100,7 @@ async def get_my_support_tickets(user: dict = Depends(require_tma_user)):
         {"user_id": user["id"]},
         {"_id": 0}
     ).sort("created_at", -1).limit(20).to_list(20)
-    
+
     return {"tickets": tickets}
 
 
@@ -992,9 +1114,9 @@ async def make_me_admin(user: dict = Depends(require_tma_user)):
     telegram_id = user.get("telegram_id")
     if not telegram_id:
         raise HTTPException(400, "Telegram ID not found")
-    
+
     telegram_id_int = int(telegram_id)
-    
+
     # Додати до bot_admins
     await db.bot_admins.update_one(
         {"user_id": telegram_id_int},
@@ -1011,7 +1133,7 @@ async def make_me_admin(user: dict = Depends(require_tma_user)):
         },
         upsert=True
     )
-    
+
     return {
         "success": True,
         "message": f"Користувач {telegram_id_int} тепер OWNER адмін!",

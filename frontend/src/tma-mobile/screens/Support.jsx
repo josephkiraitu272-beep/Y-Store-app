@@ -3,21 +3,21 @@
  * Форма звернення з відправкою в Telegram
  */
 
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { MessageCircle, Send, CheckCircle, Clock } from 'lucide-react';
-import { toast } from 'sonner';
-import api from '../lib/api-client';
-import telegram from '../lib/telegram-sdk';
-import TopBar from '../components/TopBar';
-import Page from '../components/Page';
-import './Support.css';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { MessageCircle, Send, CheckCircle, Clock } from "lucide-react";
+import { toast } from "sonner";
+import api from "../lib/api-client";
+import telegram from "../lib/telegram-sdk";
+import TopBar from "../components/TopBar";
+import Page from "../components/Page";
+import "./Support.css";
 
 export default function Support() {
   const navigate = useNavigate();
-  const [subject, setSubject] = useState('');
-  const [message, setMessage] = useState('');
-  const [contactInfo, setContactInfo] = useState('');
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
+  const [contactInfo, setContactInfo] = useState("");
   const [loading, setLoading] = useState(false);
   const [myTickets, setMyTickets] = useState([]);
   const [loadingTickets, setLoadingTickets] = useState(true);
@@ -28,10 +28,10 @@ export default function Support() {
 
   const loadMyTickets = async () => {
     try {
-      const data = await api.get('/tma/support/my-tickets');
+      const data = await api.get("/tma/support/my-tickets");
       setMyTickets(data.tickets || []);
     } catch (error) {
-      console.error('Failed to load tickets:', error);
+      console.error("Failed to load tickets:", error);
     } finally {
       setLoadingTickets(false);
     }
@@ -39,34 +39,34 @@ export default function Support() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!subject.trim() || !message.trim()) {
-      toast.error('Заповніть тему та повідомлення');
+      toast.error("Заповніть тему та повідомлення");
       return;
     }
 
     setLoading(true);
-    telegram.haptic('medium');
+    telegram.haptic("medium");
 
     try {
-      const response = await api.post('/tma/support/ticket', {
+      const response = await api.post("/tma/support/ticket", {
         subject: subject.trim(),
         message: message.trim(),
         contact_info: contactInfo.trim() || null,
       });
 
-      toast.success(response.message || 'Звернення надіслано!');
-      
+      toast.success(response.message || "Звернення надіслано!");
+
       // Clear form
-      setSubject('');
-      setMessage('');
-      setContactInfo('');
-      
+      setSubject("");
+      setMessage("");
+      setContactInfo("");
+
       // Reload tickets
       loadMyTickets();
     } catch (error) {
-      console.error('Failed to submit ticket:', error);
-      toast.error('Помилка відправки. Спробуйте ще раз.');
+      console.error("Failed to submit ticket:", error);
+      toast.error("Помилка відправки. Спробуйте ще раз.");
     } finally {
       setLoading(false);
     }
@@ -74,19 +74,16 @@ export default function Support() {
 
   const getStatusBadge = (status) => {
     const badges = {
-      new: { label: 'Нове', color: '#FFA500' },
-      in_progress: { label: 'В обробці', color: '#0EA5A4' },
-      resolved: { label: 'Вирішено', color: '#10B981' },
-      closed: { label: 'Закрито', color: '#6B7280' },
+      new: { label: "Нове", color: "#FFA500" },
+      in_progress: { label: "В обробці", color: "#0EA5A4" },
+      resolved: { label: "Вирішено", color: "#10B981" },
+      closed: { label: "Закрито", color: "#6B7280" },
     };
-    
+
     const badge = badges[status] || badges.new;
-    
+
     return (
-      <span 
-        className="support__ticket-status" 
-        style={{ color: badge.color }}
-      >
+      <span className="support__ticket-status" style={{ color: badge.color }}>
         {badge.label}
       </span>
     );
@@ -141,7 +138,9 @@ export default function Support() {
               </div>
 
               <div className="support__field">
-                <label className="support__label">Контакт для зв'язку (необов'язково)</label>
+                <label className="support__label">
+                  Контакт для зв'язку (необов'язково)
+                </label>
                 <input
                   type="text"
                   className="support__input"
@@ -152,13 +151,13 @@ export default function Support() {
                 />
               </div>
 
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 className="support__submit-btn"
                 disabled={loading}
               >
                 {loading ? (
-                  'Надсилається...'
+                  "Надсилається..."
                 ) : (
                   <>
                     <Send size={18} />
@@ -172,24 +171,29 @@ export default function Support() {
             {!loadingTickets && myTickets.length > 0 && (
               <div className="support__section">
                 <h3 className="support__section-title">Мої звернення</h3>
-                
+
                 <div className="support__tickets">
                   {myTickets.map((ticket) => (
                     <div key={ticket.id} className="support__ticket-card">
                       <div className="support__ticket-header">
-                        <span className="support__ticket-subject">{ticket.subject}</span>
+                        <span className="support__ticket-subject">
+                          {ticket.subject}
+                        </span>
                         {getStatusBadge(ticket.status)}
                       </div>
                       <p className="support__ticket-message">
-                        {ticket.message.length > 100 
-                          ? `${ticket.message.slice(0, 100)}...` 
-                          : ticket.message
-                        }
+                        {ticket.message.length > 100
+                          ? `${ticket.message.slice(0, 100)}...`
+                          : ticket.message}
                       </p>
                       <div className="support__ticket-footer">
                         <div className="support__ticket-date">
                           <Clock size={14} />
-                          <span>{new Date(ticket.created_at).toLocaleDateString('uk-UA')}</span>
+                          <span>
+                            {new Date(ticket.created_at).toLocaleDateString(
+                              "uk-UA",
+                            )}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -212,15 +216,27 @@ export default function Support() {
                   <strong>Email:</strong> support@y-store.in.ua
                 </div>
                 <div className="support__info-item">
-                  <strong>Адреса:</strong> проспект Миколи Бажана, 24/1, Київ, 02149
+                  <strong>Адреса:</strong> проспект Миколи Бажана, 24/1, Київ,
+                  02149
                 </div>
                 <div className="support__info-item">
-                  <strong>Час роботи:</strong> Пн-Пт: 9:00-18:00, Сб: 10:00-17:00
+                  <strong>Час роботи:</strong> Пн-Пт: 9:00-18:00, Сб:
+                  10:00-17:00
                 </div>
-                <div className="support__info-item" style={{ fontStyle: 'italic', fontSize: '13px' }}>
+                <div
+                  className="support__info-item"
+                  style={{ fontStyle: "italic", fontSize: "13px" }}
+                >
                   Неділя - Вихідний
                 </div>
-                <div className="support__info-item" style={{ fontStyle: 'italic', fontSize: '13px', marginTop: '8px' }}>
+                <div
+                  className="support__info-item"
+                  style={{
+                    fontStyle: "italic",
+                    fontSize: "13px",
+                    marginTop: "8px",
+                  }}
+                >
                   Відповідаємо протягом 24 годин
                 </div>
               </div>
