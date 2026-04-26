@@ -153,7 +153,7 @@ class APIClient {
 
   // Categories — вызывает /api/v2/catalog/tree на main backend
   async getCategories() {
-    return this.mainAxios.get("/v2/catalog/tree");
+    return this.mainAxios.get("/catalog/tree");
   }
 
   // Products — вызывает /api/v2/catalog/{slug}/products на main backend
@@ -162,24 +162,24 @@ class APIClient {
     if (params.slug) {
       const slug = params.slug;
       delete params.slug;
-      return this.mainAxios.get(`/v2/catalog/${slug}/products`, { params });
+      return this.mainAxios.get(`/catalog/${slug}/products`, { params });
     }
     // Fallback: generic search
-    return this.mainAxios.get("/v2/products", { params });
+    return this.mainAxios.get("/products", { params });
   }
 
   // Get single product from main backend
   async getProduct(id) {
-    return this.mainAxios.get(`/v2/products/${id}`);
+    return this.mainAxios.get(`/products/${id}`);
   }
 
   // Search — вызывает main backend
   async searchSuggest(query) {
-    return this.mainAxios.get("/v2/search/suggest", { params: { q: query } });
+    return this.mainAxios.get("/search/suggest", { params: { q: query } });
   }
 
   async searchProducts(query) {
-    return this.mainAxios.get("/v2/search", { params: { q: query } });
+    return this.mainAxios.get("/search", { params: { q: query } });
   }
 
   // Cart (main backend)
