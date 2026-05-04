@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { productsAPI } from '../utils/api';
+import { ordersAPI, productsAPI } from '../utils/api';
 import { Button } from '../components/ui/button';
 import { MapPin, CreditCard, Building2, User, Phone, Mail, ChevronRight, AlertCircle, Package, Truck, Home, Settings, Shield, Clock } from 'lucide-react';
 import { toast } from 'sonner';
@@ -264,6 +264,27 @@ const Checkout = () => {
     return `+${digits.slice(0,2)} ${digits.slice(2,5)} ${digits.slice(5,8)} ${digits.slice(8,10)} ${digits.slice(10,12)}`;
   };
 
+  const extractBackendErrorMessage = (error, fallback = 'Сталася помилка. Спробуйте ще раз.') => {
+    const detail = error?.response?.data?.detail;
+    const message = error?.response?.data?.message;
+
+    if (typeof detail === 'string' && detail.trim()) return detail;
+    if (typeof message === 'string' && message.trim()) return message;
+
+    if (Array.isArray(detail) && detail.length > 0) {
+      // FastAPI validation errors often come as an array of objects
+      const first = detail[0];
+      if (typeof first === 'string') return first;
+      if (first?.msg) return first.msg;
+    }
+
+    if (typeof error?.message === 'string' && error.message.trim()) {
+      return error.message;
+    }
+
+    return fallback;
+  };
+
   const handleInputChange = (field, value) => {
     // Apply phone formatting
     if (field === 'phone') {
@@ -287,57 +308,59 @@ const Checkout = () => {
     try {
       setIsProcessingPayment(true);
 
-      // Create order
-      const orderNumber = `ORDER-${Date.now()}`;
-      const orderData = {
-        order_number: orderNumber,
-        buyer_id: user?.id || 'guest',
-        items: cart.map(item => {
-          const product = products[item.product_id];
-          return {
+      // Normalize payment method for backend contracts
+      const normalizedPaymentMethod = paymentMethod === 'online' ? 'card' : 'cash';
+      const isGuestCheckout = !isAuthenticated || !localStorage.getItem('token');
+
+      let order;
+      if (isGuestCheckout) {
+        const guestPayload = {
+          customer: {
+            full_name: `${recipientData.lastName} ${recipientData.firstName}`.trim(),
+            phone: recipientData.phone,
+            email: recipientData.email || undefined,
+          },
+          delivery: {
+            method: deliveryMethod === 'nova-poshta' ? 'nova_poshta' : deliveryMethod,
+            city_ref: novaPoshtaData?.cityRef || null,
+            city_name: novaPoshtaData?.city || recipientData.city || null,
+            warehouse_ref: novaPoshtaData?.warehouse?.ref || null,
+            warehouse_name: novaPoshtaData?.warehouse?.description || novaPoshtaData?.warehouse || null,
+            address: recipientData.address || null,
+            delivery_cost: deliveryPrice || 0,
+          },
+          items: cart.map((item) => ({
             product_id: item.product_id,
-            title: product?.title || 'Unknown Product',
             quantity: item.quantity,
             price: item.price,
-            seller_id: product?.seller_id || 'unknown'
-          };
-        }),
-        total_amount: totalWithDelivery,
-        currency: 'UAH',
-        shipping_address: deliveryMethod === 'nova-poshta' && novaPoshtaData ? {
-          street: novaPoshtaData.warehouse ? novaPoshtaData.warehouse.address : 'N/A',
-          city: novaPoshtaData.city || 'N/A',
-          state: '',
-          postal_code: '',
-          country: 'UA',
-          warehouse_ref: novaPoshtaData.warehouse?.ref,
-          warehouse_number: novaPoshtaData.warehouse?.number
-        } : {
-          street: recipientData.address || 'N/A',
-          city: recipientData.city || 'N/A',
-          state: '',
-          postal_code: '',
-          country: 'UA'
-        },
-        status: 'pending',
-        payment_status: paymentMethod === 'online' ? 'pending' : 'cash_on_delivery',
-        payment_method: paymentMethod
-      };
+          })),
+          payment_method: normalizedPaymentMethod === 'card' ? 'fondy' : 'cash_on_delivery',
+          comment: recipientData.comment || undefined,
+        };
 
-      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/orders`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(orderData)
-      });
+        order = await ordersAPI.createGuest(guestPayload).then((res) => res.data);
+      } else {
+        const userPayload = {
+          shipping: {
+            full_name: `${recipientData.lastName} ${recipientData.firstName}`.trim(),
+            phone: recipientData.phone,
+            city: novaPoshtaData?.city || recipientData.city || '',
+            address: deliveryMethod === 'nova-poshta'
+              ? (novaPoshtaData?.warehouse?.description || novaPoshtaData?.warehouse || recipientData.address || '')
+              : (recipientData.address || ''),
+            postal_code: recipientData.postalCode || undefined,
+            np_department: deliveryMethod === 'nova-poshta'
+              ? (novaPoshtaData?.warehouse?.description || novaPoshtaData?.warehouse || undefined)
+              : undefined,
+            notes: recipientData.comment || undefined,
+          },
+          payment_method: normalizedPaymentMethod,
+          notes: recipientData.comment || undefined,
+        };
 
-      if (!response.ok) {
-        throw new Error('Failed to create order');
+        order = await ordersAPI.create(userPayload).then((res) => res.data);
       }
-
-      const order = await response.json();
+      const orderNumber = order?.order_number || order?.id || `ORDER-${Date.now()}`;
       
       // Track order created
       trackOrderCreated(orderNumber, totalWithDelivery);
@@ -392,7 +415,7 @@ const Checkout = () => {
           }
         } catch (paymentError) {
           console.error('Payment error:', paymentError);
-          toast.error(`Помилка оплати: ${paymentError.message}`);
+          toast.error(`Помилка оплати: ${extractBackendErrorMessage(paymentError, 'Не вдалося створити платіж')}`);
           setIsProcessingPayment(false);
           return;
         }
@@ -409,7 +432,7 @@ const Checkout = () => {
       });
     } catch (error) {
       console.error('Error placing order:', error);
-      toast.error(`Помилка при оформленні замовлення: ${error.message}`);
+      toast.error(`Помилка при оформленні замовлення: ${extractBackendErrorMessage(error, 'Не вдалося оформити замовлення')}`);
     } finally {
       setIsProcessingPayment(false);
     }

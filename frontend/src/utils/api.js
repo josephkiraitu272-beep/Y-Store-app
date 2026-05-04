@@ -81,9 +81,10 @@ export const productsAPI = {
 // Cart API
 export const cartAPI = {
   get: () => api.get('/cart'),
-  addItem: (data) => api.post('/cart/items', data),
-  removeItem: (productId) => api.delete(`/cart/items/${productId}`),
+  addItem: (data) => api.post('/cart/add', data),
+  removeItem: (productId) => api.delete(`/cart/${productId}`),
   clear: () => api.delete('/cart'),
+  updateItem: (data) => api.post('/cart/update', data),
 };
 
 // Checkout API
@@ -96,6 +97,8 @@ export const checkoutAPI = {
 export const ordersAPI = {
   getAll: () => api.get('/orders'),
   getById: (id) => api.get(`/orders/${id}`),
+  create: (data) => api.post('/orders', data),
+  createGuest: (data) => api.post('/v2/orders/create', data),
 };
 
 // Seller API
