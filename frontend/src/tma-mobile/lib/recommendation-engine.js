@@ -123,7 +123,7 @@ export function getSmartUpsell({
     .filter(p => p.price >= missing && p.price <= maxPrice)
     .sort((a, b) => {
       // Prefer products closer to exact missing amount
-      const aDiff = Math.abs(p.price - missing);
+      const aDiff = Math.abs(a.price - missing);
       const bDiff = Math.abs(b.price - missing);
       return aDiff - bDiff;
     });
