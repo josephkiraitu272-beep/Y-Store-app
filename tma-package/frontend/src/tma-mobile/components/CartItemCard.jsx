@@ -11,6 +11,7 @@ import './CartItemCard.css';
 
 const CartItemCard = ({ item }) => {
   const { updateQuantity, removeItem } = useCartStore();
+  const itemId = item.product_id || item.id;
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('uk-UA').format(price);
@@ -18,27 +19,27 @@ const CartItemCard = ({ item }) => {
 
   const handleIncrease = () => {
     telegram.haptic('light');
-    updateQuantity(item.id, item.quantity + 1);
+    updateQuantity(itemId, item.quantity + 1);
   };
 
   const handleDecrease = () => {
     telegram.haptic('light');
     if (item.quantity > 1) {
-      updateQuantity(item.id, item.quantity - 1);
+      updateQuantity(itemId, item.quantity - 1);
     }
   };
 
   const handleRemove = () => {
     telegram.haptic('warning');
     telegram.notificationOccurred('warning');
-    removeItem(item.id);
+    removeItem(itemId);
   };
 
   return (
     <div className="cart-item-card" data-testid="cart-item">
       <div className="cart-item-card__image">
-        {item.images && item.images[0] ? (
-          <img src={item.images[0]} alt={item.title} />
+        {(item.images && item.images[0]) || item.image ? (
+          <img src={(item.images && item.images[0]) || item.image} alt={item.title} />
         ) : (
           <div className="cart-item-card__image-placeholder">📷</div>
         )}

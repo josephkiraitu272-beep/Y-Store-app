@@ -44,7 +44,7 @@ const useCartStore = create(
 
       removeItem: (productId) => {
         set({
-          items: get().items.filter(item => item.product_id !== productId),
+          items: get().items.filter(item => (item.product_id || item.id) !== productId),
         });
       },
 
@@ -54,7 +54,7 @@ const useCartStore = create(
         } else {
           set({
             items: get().items.map(item =>
-              item.product_id === productId
+              (item.product_id || item.id) === productId
                 ? { ...item, quantity }
                 : item
             ),

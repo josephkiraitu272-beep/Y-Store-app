@@ -3,21 +3,26 @@
  * Live suggestions, recent searches, empty state
  */
 
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Search as SearchIcon, X } from 'lucide-react';
-import api from '../lib/api-client';
-import telegram from '../lib/telegram-sdk';
-import TopBar from '../components/TopBar';
-import Page from '../components/Page';
-import './Search-v2.css';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Search as SearchIcon, X } from "lucide-react";
+import api from "../lib/api-client";
+import telegram from "../lib/telegram-sdk";
+import TopBar from "../components/TopBar";
+import Page from "../components/Page";
+import "./Search-v2.css";
 
 const Search = () => {
   const navigate = useNavigate();
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [recentSearches] = useState(['iPhone', 'MacBook', 'AirPods', 'Samsung']);
+  const [recentSearches] = useState([
+    "iPhone",
+    "MacBook",
+    "AirPods",
+    "Samsung",
+  ]);
 
   useEffect(() => {
     if (query.length > 1) {
@@ -31,9 +36,9 @@ const Search = () => {
     try {
       setLoading(true);
       const data = await api.searchProducts(q);
-      setResults(data.items || data || []);
+      setResults(data.items || data.products || data || []);
     } catch (error) {
-      console.error('Search error:', error);
+      console.error("Search error:", error);
       setResults([]);
     } finally {
       setLoading(false);
@@ -41,18 +46,18 @@ const Search = () => {
   };
 
   const handleClear = () => {
-    telegram.haptic('light');
-    setQuery('');
+    telegram.haptic("light");
+    setQuery("");
     setResults([]);
   };
 
   const handleResultClick = (product) => {
-    telegram.haptic('light');
+    telegram.haptic("light");
     navigate(`/tma/product/${product.id}`);
   };
 
   const handleRecentClick = (searchQuery) => {
-    telegram.haptic('light');
+    telegram.haptic("light");
     setQuery(searchQuery);
   };
 
@@ -74,7 +79,11 @@ const Search = () => {
                 autoFocus
               />
               {query && (
-                <button className="search-v2__clear" onClick={handleClear} aria-label="Очистити">
+                <button
+                  className="search-v2__clear"
+                  onClick={handleClear}
+                  aria-label="Очистити"
+                >
                   <X size={20} />
                 </button>
               )}
@@ -123,9 +132,11 @@ const Search = () => {
                       )}
                     </div>
                     <div className="search-v2__result-info">
-                      <div className="search-v2__result-title">{product.title}</div>
+                      <div className="search-v2__result-title">
+                        {product.title}
+                      </div>
                       <div className="search-v2__result-price">
-                        {new Intl.NumberFormat('uk-UA').format(product.price)} ₴
+                        {new Intl.NumberFormat("uk-UA").format(product.price)} ₴
                       </div>
                     </div>
                   </div>
