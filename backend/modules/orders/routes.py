@@ -229,7 +229,24 @@ async def create_order(
     }
     
     await db.orders.insert_one(order_doc)
-    
+
+    # Notify admin bot about new order
+    try:
+        from modules.bot.alerts_service import AlertsService
+        alerts = AlertsService(db)
+        await alerts.init()
+        await alerts.alert_new_order({
+            "id": order_id,
+            "totals": {"grand": total},
+            "shipping": {
+                "full_name": data.shipping.full_name,
+                "phone": data.shipping.phone,
+                "city": data.shipping.city,
+            },
+        })
+    except Exception as e:
+        logger.warning(f"Bot alert failed for order {order_id}: {e}")
+
     # Clear cart
     await db.carts.update_one(
         {"user_id": user_id},

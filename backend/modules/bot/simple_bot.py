@@ -499,7 +499,7 @@ async def set_bot_info():
         logger.info("✅ Bot short description set")
 
         menu_button = MenuButtonWebApp(
-            text="🛍 Магазин",
+            text="🛍 Y-Store",
             web_app=WebAppInfo(url=TMA_URL),
         )
         await bot.set_chat_menu_button(menu_button=menu_button)

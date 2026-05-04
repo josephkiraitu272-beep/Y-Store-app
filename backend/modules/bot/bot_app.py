@@ -102,7 +102,7 @@ alerts_worker = AlertsWorker(db, TOKEN)
 automation_engine = AutomationEngine(db)
 
 # Public commands accessible to everyone (no admin check)
-_PUBLIC_COMMANDS = {"start", "menu", "shop", "store", "app", "help", "debug", "be_admin", "revoke_admin"}
+_PUBLIC_COMMANDS = {"start", "menu", "shop", "store", "app", "help", "debug", "be_admin", "revoke_admin", "update_app"}
 
 
 class AdminMiddleware(BaseMiddleware):
@@ -270,6 +270,27 @@ async def cmd_revoke_admin(message: types.Message):
         f"Єдиний адмін: <code>{OWNER_ID}</code>",
         parse_mode="HTML",
     )
+
+
+@dp.message(Command("update_app"))
+async def cmd_update_app(message: types.Message):
+    """Примусово оновити кнопку Mini App для цього чату"""
+    try:
+        await bot.set_chat_menu_button(
+            chat_id=message.chat.id,
+            menu_button=MenuButtonWebApp(
+                text="🛍 Y-Store",
+                web_app=WebAppInfo(url=TMA_URL),
+            ),
+        )
+        await message.answer(
+            "✅ <b>Кнопку оновлено!</b>\n\n"
+            "Закрийте цей чат і відкрийте знову — кнопка <b>Y-Store</b> з'явиться внизу.",
+            parse_mode="HTML",
+        )
+    except Exception as e:
+        logger.warning(f"update_app failed for chat_id={message.chat.id}: {e}")
+        await message.answer("⚠️ Не вдалось оновити кнопку. Спробуйте пізніше.")
 
 
 @dp.message(Command("wizards"))
@@ -1190,7 +1211,7 @@ async def main():
     try:
         await bot.set_chat_menu_button(
             menu_button=MenuButtonWebApp(
-                text="🛍 Магазин",
+                text="🛍 Y-Store",
                 web_app=WebAppInfo(url=TMA_URL),
             )
         )
