@@ -3,15 +3,25 @@
  * З реальною інформацією про магазин та замовленнями користувача
  */
 
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { User, ShoppingBag, Heart, MessageCircle, ChevronRight, Phone, Mail, Clock, Package, MapPin } from 'lucide-react';
-import telegram from '../lib/telegram-sdk';
-import api from '../lib/api-client';
-import useCartStore from '../store/cart';
-import TopBar from '../components/TopBar';
-import Page from '../components/Page';
-import './Profile-v2.css';
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  User,
+  ShoppingBag,
+  Heart,
+  MessageCircle,
+  ChevronRight,
+  Phone,
+  Mail,
+  Clock,
+  MapPin,
+} from "lucide-react";
+import telegram from "../lib/telegram-sdk";
+import api from "../lib/api-client";
+import useCartStore from "../store/cart";
+import TopBar from "../components/TopBar";
+import Page from "../components/Page";
+import "./Profile-v2.css";
 
 export default function ProfileV2() {
   const navigate = useNavigate();
@@ -26,7 +36,7 @@ export default function ProfileV2() {
     // Get Telegram user data
     const user = telegram.getUser();
     setTelegramUser(user);
-    
+
     // Load store info and orders
     loadData();
   }, []);
@@ -35,66 +45,73 @@ export default function ProfileV2() {
     try {
       // Load store info (публічна, без auth)
       try {
-        const storeData = await api.get('/tma/store-info');
+        const storeData = await api.get("/tma/store-info");
         setStoreInfo(storeData);
-      } catch (err) {
-        console.log('Store info not loaded, using fallback');
+      } catch {
+        console.log("Store info not loaded, using fallback");
         // Fallback data
         setStoreInfo({
-          name: 'Y-Store',
-          full_name: 'ФОП Тищенко Олександр Миколайович',
-          description: 'Y-Store — український маркетплейс корисних речей. Широкий асортимент товарів для дому, кухні, здоров\'я, дітей, тварин, військових та блекауту. Швидка доставка Новою Поштою 1–2 дні по Україні, повернення 14 днів без питань.',
+          name: "Y-Store",
+          full_name: "ФОП Тищенко Олександр Миколайович",
+          description:
+            "Y-Store — український маркетплейс корисних речей. Широкий асортимент товарів для дому, кухні, здоров'я, дітей, тварин, військових та блекауту. Швидка доставка Новою Поштою 1–2 дні по Україні, повернення 14 днів без питань.",
           contacts: {
-            phone: '+380 (50) 247-41-61',
-            phone_2: '+380 (63) 724-77-03',
-            email: 'support@y-store.in.ua',
-            work_hours: 'Пн-Пт: 9:00-18:00, Сб: 10:00-17:00',
-            work_hours_note: 'Неділя - Вихідний',
-            response_time: 'Відповідаємо протягом 24 годин'
+            phone: "+380 (50) 247-41-61",
+            phone_2: "+380 (63) 724-77-03",
+            email: "support@y-store.in.ua",
+            work_hours: "Пн-Пт: 9:00-18:00, Сб: 10:00-17:00",
+            work_hours_note: "Неділя - Вихідний",
+            response_time: "Відповідаємо протягом 24 годин",
           },
           legal: {
-            fop_name: 'ФОП Тищенко Олександр Миколайович',
-            edrpou: '380637247703',
-            address: 'проспект Миколи Бажана, 24/1',
-            city: 'Київ, Україна',
-            postal_code: '02149',
-            delivery_point: 'м. Київ НП 23'
+            fop_name: "ФОП Тищенко Олександр Миколайович",
+            edrpou: "380637247703",
+            address: "проспект Миколи Бажана, 24/1",
+            city: "Київ, Україна",
+            postal_code: "02149",
+            delivery_point: "м. Київ НП 23",
           },
           about: {
             year_founded: 2020,
-            total_customers: '10,000+'
-          }
+            total_customers: "10,000+",
+          },
         });
       }
-      
+
       // Load my orders (потребує auth, може не спрацювати)
       try {
-        const ordersData = await api.get('/tma/my-orders');
-        setMyOrders(ordersData.orders || []);
+        const ordersData = await api.getOrders();
+        let orders = [];
+        if (Array.isArray(ordersData)) {
+          orders = ordersData;
+        } else if (Array.isArray(ordersData?.orders)) {
+          orders = ordersData.orders;
+        }
+        setMyOrders(orders);
       } catch (err) {
-        console.log('Orders not loaded:', err);
+        console.log("Orders not loaded:", err);
         setMyOrders([]);
       }
     } catch (error) {
-      console.error('Failed to load profile data:', error);
+      console.error("Failed to load profile data:", error);
       // Set minimal fallback
       setStoreInfo({
-        name: 'Y-Store',
-        contacts: { 
-          phone: '+380 (50) 247-41-61',
-          phone_2: '+380 (63) 724-77-03', 
-          email: 'support@y-store.in.ua', 
-          work_hours: 'Пн-Пт: 9:00-18:00, Сб: 10:00-17:00',
-          work_hours_note: 'Неділя - Вихідний'
+        name: "Y-Store",
+        contacts: {
+          phone: "+380 (50) 247-41-61",
+          phone_2: "+380 (63) 724-77-03",
+          email: "support@y-store.in.ua",
+          work_hours: "Пн-Пт: 9:00-18:00, Сб: 10:00-17:00",
+          work_hours_note: "Неділя - Вихідний",
         },
-        legal: { 
-          fop_name: 'ФОП Тищенко Олександр Миколайович', 
-          edrpou: '380637247703', 
-          address: 'проспект Миколи Бажана, 24/1',
-          city: 'Київ, Україна',
-          postal_code: '02149'
+        legal: {
+          fop_name: "ФОП Тищенко Олександр Миколайович",
+          edrpou: "380637247703",
+          address: "проспект Миколи Бажана, 24/1",
+          city: "Київ, Україна",
+          postal_code: "02149",
         },
-        about: { year_founded: 2020, total_customers: '10,000+' }
+        about: { year_founded: 2020, total_customers: "10,000+" },
       });
     } finally {
       setLoading(false);
@@ -103,51 +120,51 @@ export default function ProfileV2() {
 
   const getStatusText = (status) => {
     const statusMap = {
-      'new': 'Нове',
-      'confirmed': 'Підтверджено',
-      'shipped': 'Відправлено',
-      'delivered': 'Доставлено',
-      'cancelled': 'Скасовано',
+      new: "Нове",
+      confirmed: "Підтверджено",
+      shipped: "Відправлено",
+      delivered: "Доставлено",
+      cancelled: "Скасовано",
     };
     return statusMap[status] || status;
   };
 
   const getStatusColor = (status) => {
     const colorMap = {
-      'new': '#FFA500',
-      'confirmed': '#0EA5A4',
-      'shipped': '#0EA5A4',
-      'delivered': '#10B981',
-      'cancelled': '#EF4444',
+      new: "#FFA500",
+      confirmed: "#0EA5A4",
+      shipped: "#0EA5A4",
+      delivered: "#10B981",
+      cancelled: "#EF4444",
     };
-    return colorMap[status] || '#6B7280';
+    return colorMap[status] || "#6B7280";
   };
 
   const handleMenuClick = (path) => {
-    telegram.haptic('light');
+    telegram.haptic("light");
     navigate(path);
   };
 
   const menuItems = [
     {
-      id: 'orders',
+      id: "orders",
       icon: <ShoppingBag size={20} />,
-      label: 'Мої замовлення',
-      path: '/tma/orders',
+      label: "Мої замовлення",
+      path: "/tma/orders",
       badge: myOrders.length > 0 ? myOrders.length : null,
     },
     {
-      id: 'favorites',
+      id: "favorites",
       icon: <Heart size={20} />,
-      label: 'Обране',
-      path: '/tma/favorites',
+      label: "Обране",
+      path: "/tma/favorites",
       badge: null,
     },
     {
-      id: 'support',
+      id: "support",
       icon: <MessageCircle size={20} />,
-      label: 'Підтримка',
-      path: '/tma/support',
+      label: "Підтримка",
+      path: "/tma/support",
       badge: null,
     },
   ];
@@ -167,10 +184,11 @@ export default function ProfileV2() {
       );
     }
 
-    const fullName = [telegramUser.first_name, telegramUser.last_name]
-      .filter(Boolean)
-      .join(' ') || 'Користувач';
-    
+    const fullName =
+      [telegramUser.first_name, telegramUser.last_name]
+        .filter(Boolean)
+        .join(" ") || "Користувач";
+
     return (
       <div className="profile-v2__user-card" data-testid="profile-user-card">
         <div className="profile-v2__avatar">
@@ -185,7 +203,9 @@ export default function ProfileV2() {
         <div className="profile-v2__user-info">
           <h2 className="profile-v2__user-name">{fullName}</h2>
           {telegramUser.username && (
-            <p className="profile-v2__user-username">@{telegramUser.username}</p>
+            <p className="profile-v2__user-username">
+              @{telegramUser.username}
+            </p>
           )}
         </div>
       </div>
@@ -235,7 +255,9 @@ export default function ProfileV2() {
             {/* Recent Orders */}
             {myOrders.length > 0 && (
               <div className="profile-v2__section">
-                <div className="profile-v2__section-title">Останні замовлення</div>
+                <div className="profile-v2__section-title">
+                  Останні замовлення
+                </div>
                 <div className="profile-v2__orders">
                   {myOrders.slice(0, 3).map((order) => (
                     <div key={order.id} className="profile-v2__order-card">
@@ -243,7 +265,7 @@ export default function ProfileV2() {
                         <span className="profile-v2__order-number">
                           #{order.order_number || order.id.slice(0, 8)}
                         </span>
-                        <span 
+                        <span
                           className="profile-v2__order-status"
                           style={{ color: getStatusColor(order.status) }}
                         >
@@ -295,23 +317,25 @@ export default function ProfileV2() {
             {/* Store Info */}
             <div className="profile-v2__section">
               <div className="profile-v2__section-title">Про магазин</div>
-              
+
               <div className="profile-v2__info-card">
                 <h3 className="profile-v2__info-title">{storeInfo.name}</h3>
                 {storeInfo.description && (
                   <>
-                    <p className={`profile-v2__info-desc ${!isDescriptionExpanded && storeInfo.description.length > 150 ? 'profile-v2__info-desc--collapsed' : ''}`}>
+                    <p
+                      className={`profile-v2__info-desc ${!isDescriptionExpanded && storeInfo.description.length > 150 ? "profile-v2__info-desc--collapsed" : ""}`}
+                    >
                       {storeInfo.description}
                     </p>
                     {storeInfo.description.length > 150 && (
-                      <button 
+                      <button
                         className="profile-v2__expand-btn"
                         onClick={() => {
                           setIsDescriptionExpanded(!isDescriptionExpanded);
-                          telegram.haptic('light');
+                          telegram.haptic("light");
                         }}
                       >
-                        {isDescriptionExpanded ? 'Згорнути' : 'Читати далі'}
+                        {isDescriptionExpanded ? "Згорнути" : "Читати далі"}
                       </button>
                     )}
                   </>
@@ -321,7 +345,7 @@ export default function ProfileV2() {
               {/* Contacts */}
               <div className="profile-v2__info-card">
                 <h4 className="profile-v2__info-subtitle">Контакти</h4>
-                
+
                 <div className="profile-v2__contact-list">
                   <div className="profile-v2__contact-item">
                     <Phone size={18} />
@@ -339,17 +363,35 @@ export default function ProfileV2() {
                   </div>
                   <div className="profile-v2__contact-item">
                     <Clock size={18} />
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "2px",
+                      }}
+                    >
                       <span>{storeInfo.contacts.work_hours}</span>
                       {storeInfo.contacts.work_hours_note && (
-                        <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>
+                        <span
+                          style={{
+                            fontSize: "12px",
+                            color: "var(--color-text-tertiary)",
+                          }}
+                        >
                           {storeInfo.contacts.work_hours_note}
                         </span>
                       )}
                     </div>
                   </div>
                   {storeInfo.contacts.response_time && (
-                    <div className="profile-v2__contact-item" style={{ fontSize: '13px', fontStyle: 'italic', color: 'var(--color-text-secondary)' }}>
+                    <div
+                      className="profile-v2__contact-item"
+                      style={{
+                        fontSize: "13px",
+                        fontStyle: "italic",
+                        color: "var(--color-text-secondary)",
+                      }}
+                    >
                       <span>{storeInfo.contacts.response_time}</span>
                     </div>
                   )}
@@ -359,36 +401,50 @@ export default function ProfileV2() {
               {/* Legal Info (ФОП) */}
               <div className="profile-v2__info-card">
                 <h4 className="profile-v2__info-subtitle">Реквізити</h4>
-                
+
                 <div className="profile-v2__legal-list">
                   <div className="profile-v2__legal-item">
                     <span className="profile-v2__legal-label">ФОП:</span>
-                    <span className="profile-v2__legal-value">{storeInfo.legal.fop_name}</span>
+                    <span className="profile-v2__legal-value">
+                      {storeInfo.legal.fop_name}
+                    </span>
                   </div>
                   <div className="profile-v2__legal-item">
                     <span className="profile-v2__legal-label">ЄДРПОУ:</span>
-                    <span className="profile-v2__legal-value">{storeInfo.legal.edrpou}</span>
+                    <span className="profile-v2__legal-value">
+                      {storeInfo.legal.edrpou}
+                    </span>
                   </div>
                   <div className="profile-v2__legal-item">
                     <span className="profile-v2__legal-label">Адреса:</span>
-                    <span className="profile-v2__legal-value">{storeInfo.legal.address}</span>
+                    <span className="profile-v2__legal-value">
+                      {storeInfo.legal.address}
+                    </span>
                   </div>
                   {storeInfo.legal.city && (
                     <div className="profile-v2__legal-item">
                       <span className="profile-v2__legal-label">Місто:</span>
-                      <span className="profile-v2__legal-value">{storeInfo.legal.city}</span>
+                      <span className="profile-v2__legal-value">
+                        {storeInfo.legal.city}
+                      </span>
                     </div>
                   )}
                   {storeInfo.legal.postal_code && (
                     <div className="profile-v2__legal-item">
                       <span className="profile-v2__legal-label">Індекс:</span>
-                      <span className="profile-v2__legal-value">{storeInfo.legal.postal_code}</span>
+                      <span className="profile-v2__legal-value">
+                        {storeInfo.legal.postal_code}
+                      </span>
                     </div>
                   )}
                   {storeInfo.legal.delivery_point && (
                     <div className="profile-v2__legal-item">
-                      <span className="profile-v2__legal-label">Самовивіз:</span>
-                      <span className="profile-v2__legal-value">{storeInfo.legal.delivery_point}</span>
+                      <span className="profile-v2__legal-label">
+                        Самовивіз:
+                      </span>
+                      <span className="profile-v2__legal-value">
+                        {storeInfo.legal.delivery_point}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -401,7 +457,8 @@ export default function ProfileV2() {
                 Версія: 2.0 • Telegram Mini App
               </p>
               <p className="profile-v2__app-platform">
-                {storeInfo.about.year_founded} • {storeInfo.about.total_customers} клієнтів
+                {storeInfo.about.year_founded} •{" "}
+                {storeInfo.about.total_customers} клієнтів
               </p>
             </div>
           </div>
